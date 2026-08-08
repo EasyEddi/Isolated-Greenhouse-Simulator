@@ -53,7 +53,9 @@ jobs:
         run: ./${{ env.GODOT_BIN }} --headless --path . --script res://tests/run_integration_tests.gd
 
       - name: Export Windows release
-        run: ./${{ env.GODOT_BIN }} --headless --path . --export-release "Windows Desktop" build/IsolatedGreenhouse_0.1.0.exe
+        run: |
+          mkdir -p build
+          ./${{ env.GODOT_BIN }} --headless --path . --export-release "Windows Desktop" build/IsolatedGreenhouse_0.1.0.exe
 
       - name: Upload Windows executable
         uses: actions/upload-artifact@v7
