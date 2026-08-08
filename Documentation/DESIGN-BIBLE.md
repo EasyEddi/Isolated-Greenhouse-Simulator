@@ -60,6 +60,7 @@ The first release targets twelve recognizable species across different care prof
 - Every plant tracks moisture, nutrition, health, maturity, care streak, and offshoot progress.
 - Correct soil improves care quality, recovery, and growth. Incorrect soil remains playable but slows progress and raises stress.
 - Correct fertilizer produces steady nutrition. Incorrect fertilizer provides less nutrition and can temporarily stress the plant.
+- Each soil and feed profile keeps a distinct icon accent across ordering, inventory, and equipped-item views.
 - Watering is press-and-hold, consumes the can reservoir, and fills moisture over time.
 - Overwatering and drought both matter, but neither instantly kills a plant. Visible stress gives the player time to recover.
 - Stress progressively droops and discolors foliage, while recovery restores the species' healthy color.

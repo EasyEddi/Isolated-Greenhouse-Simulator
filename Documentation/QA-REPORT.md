@@ -3,8 +3,8 @@
 ## Automated Coverage
 
 - Headless editor import: pass, no stderr output.
-- Simulation and state suite: `366/366` checks passing.
-- Scene integration suite: `81/81` checks passing, no stderr output.
+- Simulation and state suite: `367/367` checks passing.
+- Scene integration suite: `87/87` checks passing, no stderr output.
 - Complete purchase, drone delivery, pot preparation, care, two offshoot harvests, propagation, sale, and save smoke path: pass.
 - Consecutive drone orders: FIFO delivery order verified with two physical crates.
 - Interrupted delivery recovery: a pending order survives a full scene restart, resumes flight, lands, and clears only after collection.
@@ -15,10 +15,13 @@
 
 ## Visual Review
 
-- `1920x1080` and `1280x720` captures inspected for blank output, clipping, overlap, and readable controls.
+- `1024x768`, `1280x720`, `1920x1080`, and `3440x1440` captures inspected for blank output, clipping, overlap, and readable controls.
+- Compact 4:3 and ultrawide renders keep the terminal checkout, inventory, currency, objectives, and hotbar inside their intended bounds.
 - Twelve species use distinct modeled silhouettes; no plant billboards are used.
 - Growth emergence, watering stream, inherited variegation, propagated young plants, stressed foliage, prepared soil, and ready offshoot visuals were individually rendered and inspected.
+- All eight soil and feed profiles use distinct, consistent icon accents across the terminal, inventory, and hotbar.
 - Storage rows keep soil on brown lower pads and fertilizer on green upper pads; stored bags lie on individual slots.
+- The first-person capsule is blocked by all five exterior wall runs while both the residential-wing opening and greenhouse doorway remain traversable.
 
 ## Performance
 

@@ -38,6 +38,10 @@ func _test_catalog() -> void:
 	_expect(PlantCatalog.SOIL_NAMES.size() == 4, "catalog has four soil profiles")
 	_expect(PlantCatalog.FEED_NAMES.size() == 4, "catalog has four feed profiles")
 	_expect(PlantCatalog.shop_item_ids().size() == 20, "shop contains twelve starters and eight care supplies")
+	var care_accents: Dictionary = {}
+	for item_id in PlantCatalog.CARE_ITEM_ACCENTS:
+		care_accents[PlantCatalog.care_item_accent(item_id).to_html()] = true
+	_expect(care_accents.size() == 8, "all care profiles have distinct visual accents")
 	var seen_names: Dictionary = {}
 	for species_id in PlantCatalog.species_ids():
 		var data := PlantCatalog.species(species_id)

@@ -143,17 +143,35 @@ func _test_interaction_focus(game) -> void:
 
 
 func _test_hall_collision(game) -> void:
-	game.player.global_position = Vector3(10.70, 0.05, 0.0)
-	game.player.rotation.y = -PI * 0.5
+	var east_stop := await _push_player_forward(game, Vector3(10.70, 0.05, 0.0), -PI * 0.5)
+	_expect(east_stop.x < 11.48, "east hall wall blocks first-person movement")
+	var south_stop := await _push_player_forward(game, Vector3(0.0, 0.05, -9.15), 0.0)
+	_expect(south_stop.z > -9.70, "south hall wall blocks first-person movement")
+	var north_stop := await _push_player_forward(game, Vector3(0.0, 0.05, 9.15), PI)
+	_expect(north_stop.z < 9.70, "north hall wall blocks first-person movement")
+	var lower_west_stop := await _push_player_forward(game, Vector3(-11.0, 0.05, -5.0), PI * 0.5)
+	_expect(lower_west_stop.x > -11.50, "lower west hall wall blocks first-person movement")
+	var wing_west_stop := await _push_player_forward(game, Vector3(-18.45, 0.05, 5.0), PI * 0.5)
+	_expect(wing_west_stop.x > -19.0, "residential wing wall blocks first-person movement")
+	var wing_entry := await _push_player_forward(game, Vector3(-10.8, 0.05, 5.0), PI * 0.5)
+	_expect(wing_entry.x < -13.0, "L-shaped hall opening leads into the residential wing")
+	var greenhouse_entry := await _push_player_forward(game, Vector3(7.15, 0.05, -3.85), 0.0)
+	_expect(greenhouse_entry.z < -5.20, "greenhouse doorway admits the first-person capsule (stopped at %s)" % greenhouse_entry)
+	_expect(game.player.is_on_floor(), "player remains grounded after collision test")
+
+
+func _push_player_forward(game, start: Vector3, yaw: float) -> Vector3:
+	game.player.global_position = start
+	game.player.velocity = Vector3.ZERO
+	game.player.rotation.y = yaw
 	game.player.look_pitch = 0.0
 	game.player.camera_pivot.rotation.x = 0.0
 	game.player.set_gameplay_enabled(true, false)
 	Input.action_press("move_forward")
-	for _frame in range(90):
+	for _frame in range(75):
 		await physics_frame
 	Input.action_release("move_forward")
-	_expect(game.player.global_position.x < 11.48, "outer hall wall blocks first-person movement")
-	_expect(game.player.is_on_floor(), "player remains grounded after collision test")
+	return game.player.global_position
 
 
 func _test_pause_freezes_simulation(game) -> void:

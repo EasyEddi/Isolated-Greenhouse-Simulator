@@ -26,6 +26,12 @@ func _draw() -> void:
 	if icon_kind.begins_with("species:"):
 		_draw_species(center, scale, icon_kind.trim_prefix("species:"))
 		return
+	if icon_kind.begins_with("soil:"):
+		_draw_bag(center, scale, false, PlantCatalog.care_item_accent(icon_kind))
+		return
+	if icon_kind.begins_with("feed:"):
+		_draw_bag(center, scale, true, PlantCatalog.care_item_accent(icon_kind))
+		return
 	match icon_kind:
 		"leaf", "offshoot":
 			_draw_leaf(center, scale)
@@ -101,8 +107,8 @@ func _draw_secateurs(center: Vector2, scale: float) -> void:
 	draw_circle(center + Vector2(0, 3) * scale, 3 * scale, Color("#3d514d"))
 
 
-func _draw_bag(center: Vector2, scale: float, feed: bool) -> void:
-	var base := Color("#6ca968") if feed else Color("#8c684b")
+func _draw_bag(center: Vector2, scale: float, feed: bool, accent: Color = Color.TRANSPARENT) -> void:
+	var base := accent if accent.a > 0.01 else (Color("#6ca968") if feed else Color("#8c684b"))
 	var points := PackedVector2Array([
 		center + Vector2(-14, -17) * scale,
 		center + Vector2(13, -17) * scale,
@@ -112,11 +118,11 @@ func _draw_bag(center: Vector2, scale: float, feed: bool) -> void:
 		center + Vector2(-18, -6) * scale,
 	])
 	draw_colored_polygon(points, base)
-	draw_rect(Rect2(center + Vector2(-11, -7) * scale, Vector2(22, 16) * scale), Color("#d8d2b5"), true)
+	draw_rect(Rect2(center + Vector2(-11, -7) * scale, Vector2(22, 16) * scale), base.lightened(0.56), true)
 	if feed:
-		draw_circle(center + Vector2(0, 1) * scale, 5 * scale, Color("#6ca968"))
+		draw_circle(center + Vector2(0, 1) * scale, 5 * scale, base.darkened(0.18))
 	else:
-		draw_colored_polygon(PackedVector2Array([center + Vector2(-7, 5) * scale, center + Vector2(0, -5) * scale, center + Vector2(8, 5) * scale]), Color("#6a4b35"))
+		draw_colored_polygon(PackedVector2Array([center + Vector2(-7, 5) * scale, center + Vector2(0, -5) * scale, center + Vector2(8, 5) * scale]), base.darkened(0.24))
 
 
 func _draw_starter(center: Vector2, scale: float) -> void:

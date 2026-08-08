@@ -24,6 +24,17 @@ const MUTATION_VALUE_MULTIPLIERS := {
 	"variegated": 1.65,
 }
 
+const CARE_ITEM_ACCENTS := {
+	"soil:aroid": Color("#718b5d"),
+	"soil:moist": Color("#648a9b"),
+	"soil:loam": Color("#a36f4d"),
+	"soil:gritty": Color("#8d887b"),
+	"feed:foliage": Color("#5fa36e"),
+	"feed:bloom": Color("#bf7f9c"),
+	"feed:herb": Color("#8b77aa"),
+	"feed:succulent": Color("#559b91"),
+}
+
 const SPECIES := {
 	"monstera_deliciosa": {
 		"name": "Monstera deliciosa",
@@ -224,14 +235,14 @@ const BASE_ITEMS := {
 	"trowel": {"name": "Trowel", "kind": "tool", "price": 0, "icon": "trowel"},
 	"secateurs": {"name": "Secateurs", "kind": "tool", "price": 0, "icon": "cut"},
 	"empty_pot": {"name": "Empty pot", "kind": "equipment", "price": 0, "icon": "starter"},
-	"soil:aroid": {"name": "Aroid Mix", "kind": "soil", "profile": "aroid", "price": 8, "icon": "soil"},
-	"soil:moist": {"name": "Moist Mix", "kind": "soil", "profile": "moist", "price": 8, "icon": "soil"},
-	"soil:loam": {"name": "Loam Mix", "kind": "soil", "profile": "loam", "price": 7, "icon": "soil"},
-	"soil:gritty": {"name": "Gritty Mix", "kind": "soil", "profile": "gritty", "price": 8, "icon": "soil"},
-	"feed:foliage": {"name": "Foliage Feed", "kind": "feed", "profile": "foliage", "price": 7, "icon": "feed"},
-	"feed:bloom": {"name": "Bloom Feed", "kind": "feed", "profile": "bloom", "price": 7, "icon": "feed"},
-	"feed:herb": {"name": "Herb Feed", "kind": "feed", "profile": "herb", "price": 6, "icon": "feed"},
-	"feed:succulent": {"name": "Succulent Tonic", "kind": "feed", "profile": "succulent", "price": 7, "icon": "feed"},
+	"soil:aroid": {"name": "Aroid Mix", "kind": "soil", "profile": "aroid", "price": 8, "icon": "soil:aroid"},
+	"soil:moist": {"name": "Moist Mix", "kind": "soil", "profile": "moist", "price": 8, "icon": "soil:moist"},
+	"soil:loam": {"name": "Loam Mix", "kind": "soil", "profile": "loam", "price": 7, "icon": "soil:loam"},
+	"soil:gritty": {"name": "Gritty Mix", "kind": "soil", "profile": "gritty", "price": 8, "icon": "soil:gritty"},
+	"feed:foliage": {"name": "Foliage Feed", "kind": "feed", "profile": "foliage", "price": 7, "icon": "feed:foliage"},
+	"feed:bloom": {"name": "Bloom Feed", "kind": "feed", "profile": "bloom", "price": 7, "icon": "feed:bloom"},
+	"feed:herb": {"name": "Herb Feed", "kind": "feed", "profile": "herb", "price": 6, "icon": "feed:herb"},
+	"feed:succulent": {"name": "Succulent Tonic", "kind": "feed", "profile": "succulent", "price": 7, "icon": "feed:succulent"},
 }
 
 
@@ -293,3 +304,7 @@ static func shop_item_ids() -> Array[String]:
 static func display_name(item_id: String) -> String:
 	var data := item(item_id)
 	return data.get("name", item_id.capitalize())
+
+
+static func care_item_accent(item_id: String) -> Color:
+	return Color(CARE_ITEM_ACCENTS.get(item_id, Color("#8c684b")))
