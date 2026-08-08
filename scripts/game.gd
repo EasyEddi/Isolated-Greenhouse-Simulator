@@ -116,8 +116,8 @@ func _begin_shift(load_existing: bool) -> void:
 			game_state.new_game()
 			world.reset_plants()
 		else:
-			world.restore_plant_snapshots(Array(payload.get("plants", [])))
-			var stored_items := Array(payload.get("storage", []))
+			world.restore_plant_snapshots(game_state.plants_snapshot)
+			var stored_items := game_state.storage_snapshot
 			if stored_items.is_empty():
 				world.reset_storage()
 			else:

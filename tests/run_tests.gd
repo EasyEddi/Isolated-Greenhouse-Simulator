@@ -61,6 +61,7 @@ func _test_catalog() -> void:
 		_expect(PlantCatalog.item("offshoot:%s" % species_id).kind == "offshoot", "%s offshoot resolves" % species_id)
 		var mutation_item := PlantCatalog.item("offshoot:%s#variegated" % species_id)
 		_expect(mutation_item.kind == "offshoot" and int(mutation_item.price) > int(data.offshoot_value), "%s mutation offshoot has a premium" % species_id)
+	_expect(PlantCatalog.item("offshoot:mint#invented").is_empty(), "unknown mutation ids cannot become inventory items")
 
 
 func _test_asset_manifest() -> void:
@@ -127,6 +128,7 @@ func _test_economy_and_save() -> void:
 	state.consume_water(5.0)
 	_expect(empty_warnings[0] == 2, "refilling rearms the empty watering can warning")
 	_expect(not state.add_to_cart("unknown:item"), "unknown items cannot enter cart")
+	_expect(not state.add_to_cart("offshoot:mint"), "sale stock cannot be smuggled into a purchase order")
 	_expect(state.add_to_cart("starter:mint"), "starter enters cart")
 	_expect(state.add_to_cart("soil:moist"), "soil enters cart")
 	_expect(state.add_to_cart("feed:herb"), "feed enters cart")
@@ -136,10 +138,13 @@ func _test_economy_and_save() -> void:
 	_expect(state.pending_orders.size() == 1, "checkout creates pending order")
 	_expect(state.objective_index == 1, "checkout advances onboarding")
 	var order: Dictionary = state.pending_orders[0]
-	state.collect_delivery(str(order.id), Dictionary(order.items))
+	_expect(state.collect_delivery(str(order.id)), "paid order can be collected")
 	_expect(state.pending_orders.is_empty(), "collection clears pending order")
 	_expect(state.item_count("starter:mint") == 1, "collection grants starter")
 	_expect(state.objective_index == 2, "collection advances onboarding")
+	var starter_count_after_collection := state.item_count("starter:mint")
+	_expect(not state.collect_delivery(str(order.id)), "a delivery cannot be collected twice")
+	_expect(state.item_count("starter:mint") == starter_count_after_collection, "duplicate delivery attempt grants no stock")
 	state.objective_index = 4
 	state.register_care_action("water")
 	_expect(state.objective_index == 4, "watering alone does not complete the two-part care objective")
@@ -149,11 +154,14 @@ func _test_economy_and_save() -> void:
 	_expect(state.checkout_cart(), "a rapid follow-up order checks out")
 	var follow_up_order: Dictionary = state.pending_orders[0]
 	_expect(str(follow_up_order.id) != str(order.id), "rapid consecutive orders receive unique ids")
-	state.collect_delivery(str(follow_up_order.id), Dictionary(follow_up_order.items))
+	state.collect_delivery(str(follow_up_order.id))
 	var before_failed_checkout := state.currency
 	state.cart = {"starter:alocasia_polly": 100}
 	_expect(not state.checkout_cart(), "unaffordable order is rejected")
 	_expect(state.currency == before_failed_checkout, "failed checkout preserves leaves")
+	state.cart = {"starter:mint": -5}
+	_expect(not state.checkout_cart(), "negative cart quantities are rejected")
+	_expect(state.currency == before_failed_checkout, "invalid cart cannot create leaves")
 	state.cart.clear()
 	state.currency = 123
 	state.add_item("offshoot:mint", 2)
@@ -185,9 +193,52 @@ func _test_economy_and_save() -> void:
 	var recovered_payload := recovered.load_game()
 	_expect(not recovered_payload.is_empty() and recovered.currency == 116, "corrupt primary save recovers from the previous valid backup")
 	_expect(GreenhouseGameState.has_save_file(), "continue remains available when only backup is valid")
+	var malformed_payload := {
+		"version": GreenhouseGameState.SAVE_VERSION,
+		"currency": -400,
+		"inventory": {"starter:mint": 2, "watering_can": -3, "offshoot:mint#invented": 5, "unknown:item": 99},
+		"pending_orders": [
+			{"id": "", "items": {"starter:mint": 1}, "total": -4},
+			{"id": "valid-order", "items": {"starter:mint": 2, "offshoot:mint": 4, "unknown:item": 8}, "total": -99},
+		],
+		"hotbar": ["unknown:item"],
+		"selected_hotbar_index": 99,
+		"watering_can_liters": 999.0,
+		"objective_index": 999,
+		"plants": [{"slot_id": "nursery_00", "species_id": "invented_species", "growth": 999.0}],
+		"storage": [{"slot_id": "storage_00", "item_id": "unknown:item"}, {"slot_id": "storage_01", "item_id": "soil:moist"}],
+		"total_sales": -8,
+		"total_harvests": -3,
+		"session_seconds": -90.0,
+		"next_order_sequence": 0,
+		"tutorial_care_actions": {"water": true, "cheat": true},
+	}
+	var malformed_file := FileAccess.open(GreenhouseGameState.SAVE_PATH, FileAccess.WRITE)
+	malformed_file.store_string(JSON.stringify(malformed_payload))
+	malformed_file.close()
+	var sanitized := GreenhouseGameState.new()
+	root.add_child(sanitized)
+	await process_frame
+	sanitized.load_game()
+	_expect(sanitized.currency == 0, "negative saved currency clamps to zero")
+	_expect(sanitized.item_count("starter:mint") == 2 and sanitized.item_count("unknown:item") == 0, "inventory loader keeps only known positive stacks")
+	_expect(sanitized.item_count("watering_can") == 1 and sanitized.item_count("trowel") == 1 and sanitized.item_count("secateurs") == 1, "damaged saves recover missing essential tools")
+	_expect(sanitized.pending_orders.size() == 1 and str(sanitized.pending_orders[0].id) == "valid-order", "delivery loader rejects malformed and duplicate-prone orders")
+	_expect(Dictionary(sanitized.pending_orders[0].items) == {"starter:mint": 2}, "delivery loader only restores purchasable item stacks")
+	_expect(int(sanitized.pending_orders[0].total) == int(PlantCatalog.item("starter:mint").price) * 2, "delivery total is recomputed from catalog prices")
+	_expect(sanitized.watering_can_liters == sanitized.watering_can_capacity and sanitized.objective_index == GreenhouseGameState.OBJECTIVES.size() - 1, "saved meters and progress clamp to playable bounds")
+	_expect(sanitized.storage_snapshot.size() == 1 and str(sanitized.storage_snapshot[0].item_id) == "soil:moist", "storage loader drops unknown items")
+	_expect(sanitized.total_sales == 0 and sanitized.total_harvests == 0 and sanitized.session_seconds == 0.0, "negative lifetime counters clamp to zero")
+	_expect(sanitized.tutorial_care_actions == {"water": true}, "tutorial loader keeps only recognized actions")
+	var damaged_plant := GreenhousePlantActor.new()
+	root.add_child(damaged_plant)
+	damaged_plant.configure("damaged", sanitized, Dictionary(malformed_payload.plants[0]))
+	_expect(damaged_plant.species_id.is_empty() and damaged_plant.growth == 0.0, "unknown saved species safely restores as an empty pot")
 	state.queue_free()
 	loaded.queue_free()
 	recovered.queue_free()
+	sanitized.queue_free()
+	damaged_plant.queue_free()
 	await process_frame
 
 

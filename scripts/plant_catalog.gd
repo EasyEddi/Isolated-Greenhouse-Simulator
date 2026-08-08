@@ -276,6 +276,8 @@ static func item(item_id: String) -> Dictionary:
 		var parts := payload.split("#", false, 1)
 		var species_id := str(parts[0])
 		var mutation_id := str(parts[1]) if parts.size() > 1 else ""
+		if not mutation_id.is_empty() and not MUTATION_NAMES.has(mutation_id):
+			return {}
 		var data := species(species_id)
 		if data:
 			var multiplier := float(MUTATION_VALUE_MULTIPLIERS.get(mutation_id, 1.0))

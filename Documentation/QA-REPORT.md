@@ -3,13 +3,15 @@
 ## Automated Coverage
 
 - Headless editor import: pass, no stderr output.
-- Simulation and state suite: `369/369` checks passing.
+- Simulation and state suite: `387/387` checks passing.
 - Scene integration suite: `88/88` checks passing, no stderr output.
 - Complete purchase, drone delivery, pot preparation, care, two offshoot harvests, propagation, sale, and save smoke path: pass.
 - Consecutive drone orders: FIFO delivery order verified with two physical crates.
 - Interrupted delivery recovery: a pending order survives a full scene restart, resumes flight, lands, and clears only after collection.
 - Full reload: leaf balance, inventory, pending delivery data, continuous plant growth, mutations, and all twelve shelf slots persist.
 - Save recovery: a deliberately corrupted primary JSON file falls back to the previous valid backup.
+- Save sanitization: valid-but-malformed JSON cannot restore unknown items, mutations, species, negative balances, invalid orders, or out-of-range plant state.
+- Economy integrity: carts accept catalog stock only, deliveries grant the paid server-side order exactly once, and duplicate collection attempts grant nothing.
 - Save protection: closing the application from the start menu leaves the existing greenhouse untouched.
 - Input modes: fixed terminal camera from three approach positions, buffered exit during camera travel, `F` entry, ignored `E`, `Escape` exit, pause freeze, and movement restoration verified.
 

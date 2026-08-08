@@ -170,7 +170,8 @@ func _on_crate_interacted(_player, _selected_item: String) -> bool:
 	if crate_order.is_empty() or not is_instance_valid(delivery_crate):
 		return false
 	var collected := crate_order.duplicate(true)
-	game_state.collect_delivery(str(crate_order.id), Dictionary(crate_order.items))
+	if not game_state.collect_delivery(str(crate_order.id)):
+		return false
 	delivery_crate.queue_free()
 	delivery_crate = null
 	crate_order = {}

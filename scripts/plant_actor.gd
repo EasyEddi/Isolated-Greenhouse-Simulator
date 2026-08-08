@@ -422,21 +422,30 @@ func snapshot() -> Dictionary:
 
 
 func apply_snapshot(data: Dictionary) -> void:
-	species_id = str(data.get("species_id", ""))
-	mutation_id = str(data.get("mutation_id", ""))
-	soil_profile = str(data.get("soil_profile", ""))
-	soil_prepared = bool(data.get("soil_prepared", false))
-	feed_profile = str(data.get("feed_profile", ""))
-	moisture = float(data.get("moisture", 0.0))
-	nutrition = float(data.get("nutrition", 0.0))
-	health = float(data.get("health", 1.0))
-	growth = float(data.get("growth", 0.0))
-	offshoot_progress = float(data.get("offshoot_progress", 0.0))
-	offshoot_ready = bool(data.get("offshoot_ready", false))
-	care_streak = float(data.get("care_streak", 0.0))
-	if not species_id.is_empty():
-		_load_plant_visual()
+	var saved_species := str(data.get("species_id", ""))
+	species_id = saved_species if not PlantCatalog.species(saved_species).is_empty() else ""
+	var saved_mutation := str(data.get("mutation_id", ""))
+	mutation_id = saved_mutation if not species_id.is_empty() and PlantCatalog.MUTATION_NAMES.has(saved_mutation) else ""
+	var saved_soil := str(data.get("soil_profile", ""))
+	soil_profile = saved_soil if PlantCatalog.SOIL_NAMES.has(saved_soil) else ""
+	soil_prepared = bool(data.get("soil_prepared", false)) and not soil_profile.is_empty()
+	var saved_feed := str(data.get("feed_profile", ""))
+	feed_profile = saved_feed if PlantCatalog.FEED_NAMES.has(saved_feed) else ""
+	moisture = clampf(_snapshot_float(data.get("moisture", 0.0)), -0.08, 1.16)
+	nutrition = clampf(_snapshot_float(data.get("nutrition", 0.0)), 0.0, 1.0)
+	health = clampf(_snapshot_float(data.get("health", 1.0), 1.0), 0.08, 1.0) if not species_id.is_empty() else 1.0
+	growth = clampf(_snapshot_float(data.get("growth", 0.0)), 0.0, 1.0) if not species_id.is_empty() else 0.0
+	offshoot_progress = clampf(_snapshot_float(data.get("offshoot_progress", 0.0)), 0.0, 1.0) if not species_id.is_empty() else 0.0
+	offshoot_ready = not species_id.is_empty() and bool(data.get("offshoot_ready", false)) and growth >= 0.92 and offshoot_progress >= 0.999
+	care_streak = clampf(_snapshot_float(data.get("care_streak", 0.0)), 0.0, 3600.0) if not species_id.is_empty() else 0.0
+	_load_plant_visual()
 	_update_visuals(true)
+
+
+static func _snapshot_float(value: Variant, fallback: float = 0.0) -> float:
+	if value is int or value is float:
+		return float(value)
+	return fallback
 
 
 func plant_readout() -> Dictionary:

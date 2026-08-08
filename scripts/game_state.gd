@@ -174,9 +174,9 @@ func consume_water(liters: float) -> float:
 
 func add_to_cart(item_id: String, amount: int = 1) -> bool:
 	var data := PlantCatalog.item(item_id)
-	if data.is_empty() or int(data.get("price", 0)) <= 0:
+	if item_id not in PlantCatalog.shop_item_ids() or data.is_empty() or int(data.get("price", 0)) <= 0:
 		return false
-	cart[item_id] = int(cart.get(item_id, 0)) + maxi(amount, 1)
+	cart[item_id] = mini(int(cart.get(item_id, 0)) + maxi(amount, 1), 99)
 	state_changed.emit()
 	return true
 
@@ -204,6 +204,9 @@ func checkout_cart() -> bool:
 	if cart.is_empty():
 		message_requested.emit("The order is empty", "warning")
 		return false
+	if not _cart_is_valid():
+		message_requested.emit("The order contains invalid stock", "warning")
+		return false
 	if total > currency:
 		message_requested.emit("Not enough leaves for this order", "warning")
 		return false
@@ -223,15 +226,23 @@ func checkout_cart() -> bool:
 	return true
 
 
-func collect_delivery(order_id: String, items: Dictionary) -> void:
-	for item_id in items:
-		add_item(item_id, int(items[item_id]))
-	for index in range(pending_orders.size() - 1, -1, -1):
+func collect_delivery(order_id: String) -> bool:
+	var order_index := -1
+	for index in range(pending_orders.size()):
 		if str(pending_orders[index].get("id", "")) == order_id:
-			pending_orders.remove_at(index)
+			order_index = index
+			break
+	if order_index < 0:
+		message_requested.emit("Delivery record not found", "warning")
+		return false
+	var order := pending_orders[order_index]
+	pending_orders.remove_at(order_index)
+	for item_id in Dictionary(order.get("items", {})):
+		add_item(item_id, int(order.items[item_id]))
 	advance_objective("delivery")
 	message_requested.emit("Delivery stored in your inventory", "good")
 	state_changed.emit()
+	return true
 
 
 func sell_offshoot(item_id: String) -> bool:
@@ -319,29 +330,31 @@ func load_game() -> Dictionary:
 		recovered = not payload.is_empty()
 	if payload.is_empty():
 		return {}
-	currency = int(payload.get("currency", 85))
-	inventory = Dictionary(payload.get("inventory", {})).duplicate(true)
-	pending_orders.clear()
-	for pending_order in Array(payload.get("pending_orders", [])):
-		if pending_order is Dictionary:
-			pending_orders.append(Dictionary(pending_order).duplicate(true))
-	hotbar = _normalized_hotbar(Array(payload.get("hotbar", hotbar)))
-	selected_hotbar_index = clampi(int(payload.get("selected_hotbar_index", 0)), 0, hotbar.size() - 1)
-	watering_can_liters = float(payload.get("watering_can_liters", watering_can_capacity))
+	currency = clampi(_safe_int(payload.get("currency", 85), 85), 0, 999999999)
+	inventory = _sanitized_inventory(payload.get("inventory", {}))
+	pending_orders = _sanitized_pending_orders(payload.get("pending_orders", []))
+	var saved_hotbar: Array = payload.get("hotbar", []) if payload.get("hotbar", []) is Array else []
+	hotbar = _normalized_hotbar(saved_hotbar)
+	selected_hotbar_index = clampi(_safe_int(payload.get("selected_hotbar_index", 0)), 0, hotbar.size() - 1)
+	watering_can_liters = clampf(_safe_float(payload.get("watering_can_liters", watering_can_capacity), watering_can_capacity), 0.0, watering_can_capacity)
 	watering_can_empty_notified = watering_can_liters <= 0.001
-	objective_index = int(payload.get("objective_index", 0))
-	plants_snapshot = Array(payload.get("plants", [])).duplicate(true)
-	storage_snapshot = Array(payload.get("storage", [])).duplicate(true)
-	total_sales = int(payload.get("total_sales", 0))
-	total_harvests = int(payload.get("total_harvests", 0))
-	session_seconds = float(payload.get("session_seconds", 0.0))
-	next_order_sequence = maxi(1, int(payload.get("next_order_sequence", 1)))
-	tutorial_care_actions = Dictionary(payload.get("tutorial_care_actions", {})).duplicate(true)
+	objective_index = clampi(_safe_int(payload.get("objective_index", 0)), 0, OBJECTIVES.size() - 1)
+	plants_snapshot = _sanitized_snapshot_array(payload.get("plants", []), 64)
+	storage_snapshot = _sanitized_storage(payload.get("storage", []))
+	total_sales = maxi(0, _safe_int(payload.get("total_sales", 0)))
+	total_harvests = maxi(0, _safe_int(payload.get("total_harvests", 0)))
+	session_seconds = maxf(0.0, _safe_float(payload.get("session_seconds", 0.0)))
+	next_order_sequence = maxi(1, _safe_int(payload.get("next_order_sequence", 1), 1))
+	tutorial_care_actions = _sanitized_tutorial_actions(payload.get("tutorial_care_actions", {}))
+	_recover_essential_tools()
 	state_changed.emit()
 	objective_changed.emit(current_objective())
 	if recovered:
 		message_requested.emit("Recovered the previous greenhouse save", "warning")
-	return payload
+	var sanitized_payload := payload.duplicate(true)
+	sanitized_payload["plants"] = plants_snapshot
+	sanitized_payload["storage"] = storage_snapshot
+	return sanitized_payload
 
 
 static func has_save_file() -> bool:
@@ -361,6 +374,114 @@ static func _read_save_payload(path: String) -> Dictionary:
 	if not parsed is Dictionary or int(parsed.get("version", 0)) != SAVE_VERSION:
 		return {}
 	return Dictionary(parsed)
+
+
+func _cart_is_valid() -> bool:
+	var shop_items := PlantCatalog.shop_item_ids()
+	for raw_item_id in cart:
+		var item_id := str(raw_item_id)
+		if item_id not in shop_items or _safe_int(cart[raw_item_id]) <= 0:
+			return false
+	return true
+
+
+static func _safe_int(value: Variant, fallback: int = 0) -> int:
+	if value is int or value is float:
+		return int(value)
+	if value is String and String(value).is_valid_int():
+		return int(value)
+	return fallback
+
+
+static func _safe_float(value: Variant, fallback: float = 0.0) -> float:
+	if value is int or value is float:
+		return float(value)
+	if value is String and String(value).is_valid_float():
+		return float(value)
+	return fallback
+
+
+static func _sanitized_inventory(source: Variant) -> Dictionary:
+	var result := {}
+	if not source is Dictionary:
+		return result
+	for raw_item_id in source:
+		var item_id := str(raw_item_id)
+		var amount := clampi(_safe_int(source[raw_item_id]), 0, 999)
+		if amount > 0 and not PlantCatalog.item(item_id).is_empty():
+			result[item_id] = amount
+	return result
+
+
+static func _sanitized_pending_orders(source: Variant) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	if not source is Array:
+		return result
+	var shop_items := PlantCatalog.shop_item_ids()
+	var seen_ids := {}
+	for raw_order in source:
+		if result.size() >= 32 or not raw_order is Dictionary:
+			continue
+		var order := Dictionary(raw_order)
+		var order_id := str(order.get("id", "")).strip_edges()
+		if order_id.is_empty() or seen_ids.has(order_id):
+			continue
+		var raw_items = order.get("items", {})
+		if not raw_items is Dictionary:
+			continue
+		var items := {}
+		var total := 0
+		for raw_item_id in raw_items:
+			var item_id := str(raw_item_id)
+			var amount := clampi(_safe_int(raw_items[raw_item_id]), 0, 99)
+			if amount <= 0 or item_id not in shop_items:
+				continue
+			items[item_id] = amount
+			total += int(PlantCatalog.item(item_id).get("price", 0)) * amount
+		if items.is_empty():
+			continue
+		seen_ids[order_id] = true
+		result.append({"id": order_id, "items": items, "total": total})
+	return result
+
+
+static func _sanitized_snapshot_array(source: Variant, limit: int) -> Array:
+	var result: Array = []
+	if not source is Array:
+		return result
+	for raw_snapshot in source:
+		if result.size() >= limit:
+			break
+		if raw_snapshot is Dictionary and not str(raw_snapshot.get("slot_id", "")).is_empty():
+			result.append(Dictionary(raw_snapshot).duplicate(true))
+	return result
+
+
+static func _sanitized_storage(source: Variant) -> Array:
+	var result: Array = []
+	for snapshot in _sanitized_snapshot_array(source, 12):
+		var item_id := str(snapshot.get("item_id", ""))
+		if item_id.is_empty() or not PlantCatalog.item(item_id).is_empty():
+			result.append({"slot_id": str(snapshot.slot_id), "item_id": item_id})
+	return result
+
+
+static func _sanitized_tutorial_actions(source: Variant) -> Dictionary:
+	var result := {}
+	if source is Dictionary:
+		for action in ["water", "feed"]:
+			if source.get(action, false) is bool and bool(source.get(action, false)):
+				result[action] = true
+	return result
+
+
+func _recover_essential_tools() -> void:
+	var stored_items := {}
+	for snapshot in storage_snapshot:
+		stored_items[str(snapshot.get("item_id", ""))] = true
+	for tool_id in ["watering_can", "trowel", "secateurs"]:
+		if item_count(tool_id) <= 0 and not stored_items.has(tool_id):
+			inventory[tool_id] = 1
 
 
 func _refresh_dynamic_hotbar(item_id: String) -> void:
