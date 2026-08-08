@@ -3,7 +3,7 @@
 ## Automated Coverage
 
 - Headless editor import: pass, no stderr output.
-- Simulation and state suite: `529/529` checks passing.
+- Simulation and state suite: `565/565` checks passing.
 - Scene integration suite: `90/90` checks passing, no stderr output.
 - Complete purchase, drone delivery, pot preparation, care, two offshoot harvests, propagation, sale, and save smoke path: pass.
 - Guided-shift completion: the complete smoke path advances every objective and reaches open-ended nursery play.
@@ -25,6 +25,7 @@
 - Growth emergence, watering stream, inherited variegation, propagated young plants, stressed foliage, prepared soil, and ready offshoot visuals were individually rendered and inspected.
 - Live care readouts distinguish drought, dry, ideal, wet, and waterlogged soil while showing whether the applied soil and feed match the species profile.
 - Matching fertilizer outperforms a mismatched feed, correct care recovers stressed plants, and mismatched fertilizer cannot drive offshoot production.
+- Every launch species completes three repeated offshoot harvests within a one-hour simulated matching-care soak while preserving health and exact inventory accounting.
 - Every plant GLB imports as a packed scene with rendered surfaces, at least 100 vertices, complete normals, indexed triangles, multiple authored materials, finite non-empty bounds, no non-finite positions, and multiple continuous-growth parts.
 - All eight soil and feed profiles use distinct, consistent icon accents across the terminal, inventory, and hotbar.
 - All eleven runtime sounds import with nonzero duration; offline PCM analysis confirms non-silent levels, consistent footsteps, and no clipping.

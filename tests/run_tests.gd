@@ -300,6 +300,22 @@ func _test_long_term_plant_simulation() -> void:
 		_expect(actor.growth >= 0.0 and actor.growth <= 1.0, "%s keeps long-term growth bounded" % species_id)
 		_expect(actor.health >= 0.08 and actor.health <= 1.0, "%s keeps long-term health bounded" % species_id)
 		_expect(actor.moisture >= -0.08 and actor.moisture <= 1.16, "%s keeps long-term moisture bounded" % species_id)
+		var offshoot_item := "offshoot:%s" % species_id
+		var inventory_before := state.item_count(offshoot_item)
+		var repeated_harvests := 0
+		for _step in range(240):
+			if actor.moisture < float(data.optimal_low) + 0.12:
+				actor.moisture = (float(data.optimal_low) + float(data.optimal_high)) * 0.5
+			if actor.nutrition < 0.40:
+				actor.nutrition = 0.85
+			actor._process(15.0)
+			if actor.offshoot_ready and actor.interact(null, "secateurs"):
+				repeated_harvests += 1
+			if repeated_harvests >= 3:
+				break
+		_expect(repeated_harvests == 3, "%s supports repeated offshoot harvests during a one-hour care soak" % species_id)
+		_expect(state.item_count(offshoot_item) - inventory_before == repeated_harvests, "%s repeated harvests preserve exact inventory accounting" % species_id)
+		_expect(actor.health >= 0.68, "%s remains healthy under a sustained matching-care routine" % species_id)
 		var saved := actor.snapshot()
 		actor.apply_snapshot(saved)
 		_expect(actor.species_id == species_id and is_equal_approx(actor.growth, float(saved.growth)), "%s survives a snapshot round-trip" % species_id)
