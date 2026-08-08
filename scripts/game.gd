@@ -259,6 +259,7 @@ func _bind_mouse_button(action: StringName, button: MouseButton) -> void:
 
 
 func _run_smoke_test() -> void:
+	var save_files_before := _capture_smoke_save_files()
 	hud.close_start_menu()
 	await get_tree().process_frame
 	var failures: Array[String] = []
@@ -328,6 +329,7 @@ func _run_smoke_test() -> void:
 		_expect(game_state.objective_index == GreenhouseGameState.OBJECTIVES.size() - 1, "guided shift reaches open-ended nursery play", failures)
 
 	_expect(game_state.save_game(world.plant_snapshots(), world.storage_snapshots()), "save game can be written", failures)
+	_expect(_restore_smoke_save_files(save_files_before), "smoke test preserves player save files", failures)
 	audio_manager.shutdown()
 	audio_manager.queue_free()
 	if hud.message_tween and hud.message_tween.is_running():
@@ -343,6 +345,33 @@ func _run_smoke_test() -> void:
 			push_error("SMOKE TEST: %s" % failure)
 		print("ISOLATED_GREENHOUSE_SMOKE_TEST: FAIL (%d)" % failures.size())
 		get_tree().quit(1)
+
+
+func _capture_smoke_save_files() -> Dictionary:
+	var captured := {}
+	for path in [GreenhouseGameState.SAVE_PATH, GreenhouseGameState.SAVE_BACKUP_PATH, GreenhouseGameState.SAVE_TEMP_PATH]:
+		captured[path] = FileAccess.get_file_as_bytes(path) if FileAccess.file_exists(path) else null
+	return captured
+
+
+func _restore_smoke_save_files(captured: Dictionary) -> bool:
+	var restored := true
+	for path in captured:
+		var original = captured[path]
+		if original is PackedByteArray:
+			var file := FileAccess.open(str(path), FileAccess.WRITE)
+			if file == null:
+				restored = false
+				continue
+			file.store_buffer(original)
+			file.close()
+			restored = restored and FileAccess.get_file_as_bytes(str(path)) == original
+		else:
+			var absolute_path := ProjectSettings.globalize_path(str(path))
+			if FileAccess.file_exists(str(path)) and DirAccess.remove_absolute(absolute_path) != OK:
+				restored = false
+			restored = restored and not FileAccess.file_exists(str(path))
+	return restored
 
 
 func _expect(condition: bool, label: String, failures: Array[String]) -> void:
