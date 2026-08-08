@@ -67,6 +67,9 @@ func _test_catalog() -> void:
 			var metrics := _model_metrics(model_root)
 			_expect(int(metrics.meshes) > 0 and int(metrics.surfaces) > 0, "%s contains rendered mesh surfaces" % species_id)
 			_expect(int(metrics.vertices) >= 100, "%s contains substantial modeled geometry" % species_id)
+			_expect(int(metrics.normals) >= int(metrics.vertices), "%s has normals for every rendered vertex" % species_id)
+			_expect(int(metrics.indices) >= 150, "%s contains indexed triangle geometry" % species_id)
+			_expect(int(metrics.invalid_vertices) == 0, "%s contains no non-finite vertex positions" % species_id)
 			_expect(int(metrics.materials) >= 2, "%s contains multiple authored materials" % species_id)
 			_expect(int(metrics.invalid_bounds) == 0, "%s mesh bounds are finite and non-empty" % species_id)
 			model_root.free()
@@ -486,7 +489,16 @@ func _count_rendered_instances(node: Node) -> int:
 
 
 func _model_metrics(root_node: Node) -> Dictionary:
-	var metrics := {"meshes": 0, "surfaces": 0, "vertices": 0, "materials": 0, "invalid_bounds": 0}
+	var metrics := {
+		"meshes": 0,
+		"surfaces": 0,
+		"vertices": 0,
+		"normals": 0,
+		"indices": 0,
+		"materials": 0,
+		"invalid_bounds": 0,
+		"invalid_vertices": 0,
+	}
 	_accumulate_model_metrics(root_node, metrics)
 	return metrics
 
@@ -501,7 +513,15 @@ func _accumulate_model_metrics(node: Node, metrics: Dictionary) -> void:
 			metrics.surfaces = int(metrics.surfaces) + 1
 			var arrays: Array = node.mesh.surface_get_arrays(surface)
 			if arrays.size() > Mesh.ARRAY_VERTEX and arrays[Mesh.ARRAY_VERTEX] is PackedVector3Array:
-				metrics.vertices = int(metrics.vertices) + PackedVector3Array(arrays[Mesh.ARRAY_VERTEX]).size()
+				var vertices := PackedVector3Array(arrays[Mesh.ARRAY_VERTEX])
+				metrics.vertices = int(metrics.vertices) + vertices.size()
+				for vertex in vertices:
+					if not vertex.is_finite():
+						metrics.invalid_vertices = int(metrics.invalid_vertices) + 1
+			if arrays.size() > Mesh.ARRAY_NORMAL and arrays[Mesh.ARRAY_NORMAL] is PackedVector3Array:
+				metrics.normals = int(metrics.normals) + PackedVector3Array(arrays[Mesh.ARRAY_NORMAL]).size()
+			if arrays.size() > Mesh.ARRAY_INDEX and arrays[Mesh.ARRAY_INDEX] is PackedInt32Array:
+				metrics.indices = int(metrics.indices) + PackedInt32Array(arrays[Mesh.ARRAY_INDEX]).size()
 			if node.mesh.surface_get_material(surface) != null:
 				metrics.materials = int(metrics.materials) + 1
 	for child in node.get_children():
