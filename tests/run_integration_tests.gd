@@ -121,6 +121,18 @@ func _test_interaction_focus(game) -> void:
 	_send_action(game.player, "interact")
 	await process_frame
 	_expect(game.terminal_active, "E is ignored while the terminal owns input")
+	_send_action(game.terminal_ui, "terminal")
+	var f_close_deadline := Time.get_ticks_msec() + 2200
+	while (game.terminal_active or game.terminal_transitioning) and Time.get_ticks_msec() < f_close_deadline:
+		await process_frame
+	_expect(not game.terminal_active and game.player.gameplay_enabled, "F exits the terminal and restores movement")
+	await physics_frame
+	game.player._update_focus()
+	_send_action(game.player, "terminal")
+	var f_reopen_deadline := Time.get_ticks_msec() + 2200
+	while (not game.terminal_active or game.terminal_transitioning) and Time.get_ticks_msec() < f_reopen_deadline:
+		await process_frame
+	_expect(game.terminal_active and game.terminal_ui.visible, "F reopens the terminal after returning to the desk")
 	_send_action(game.player, "pause")
 	var close_deadline := Time.get_ticks_msec() + 2200
 	while (game.terminal_active or game.terminal_transitioning) and Time.get_ticks_msec() < close_deadline:
