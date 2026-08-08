@@ -53,6 +53,7 @@ var palette := {
 
 
 func configure(state: GreenhouseGameState, controlled_player: GreenhousePlayer) -> GreenhouseHUD:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	game_state = state
 	player = controlled_player
 	_build_ui()
@@ -78,9 +79,11 @@ func show_start_menu(has_save: bool) -> void:
 	player.held_root.visible = false
 	continue_button.visible = has_save
 	player.set_gameplay_enabled(false)
+	get_tree().paused = true
 
 
 func close_start_menu() -> void:
+	get_tree().paused = false
 	start_open = false
 	start_overlay.visible = false
 	gameplay_root.visible = true
@@ -115,7 +118,12 @@ func toggle_pause() -> void:
 		inventory_open_changed.emit(false)
 	pause_open = not pause_open
 	pause_overlay.visible = pause_open
-	player.set_gameplay_enabled(not pause_open)
+	if pause_open:
+		player.set_gameplay_enabled(false)
+		get_tree().paused = true
+	else:
+		get_tree().paused = false
+		player.set_gameplay_enabled(true)
 	pause_open_changed.emit(pause_open)
 
 
@@ -124,6 +132,7 @@ func close_overlays() -> void:
 	pause_open = false
 	inventory_overlay.visible = false
 	pause_overlay.visible = false
+	get_tree().paused = false
 	if not start_open:
 		player.set_gameplay_enabled(true)
 

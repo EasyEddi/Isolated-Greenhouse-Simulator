@@ -26,6 +26,7 @@ var _last_held_item: String = ""
 
 
 func configure(state: GreenhouseGameState) -> GreenhousePlayer:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	game_state = state
 	_build_player()
 	game_state.state_changed.connect(_refresh_held_item)

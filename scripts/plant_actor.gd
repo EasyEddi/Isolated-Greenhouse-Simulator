@@ -26,8 +26,11 @@ var simulation_multiplier: float = 1.0
 var visual_root: Node3D
 var empty_visual: Node3D
 var plant_visual: Node3D
-var offshoot_marker: MeshInstance3D
+var soil_visual: MeshInstance3D
+var soil_material: StandardMaterial3D
+var offshoot_marker: Node3D
 var growth_parts: Array[Dictionary] = []
+var health_materials: Array[Dictionary] = []
 var _visual_accumulator: float = 0.0
 var _message_cooldown: float = 0.0
 
@@ -132,7 +135,7 @@ func hold_interact(_player, selected_item: String, delta: float) -> bool:
 		return false
 	moisture = minf(1.16, moisture + used * 0.52)
 	care_applied.emit(self)
-	game_state.advance_objective("care")
+	game_state.register_care_action("water")
 	_update_visuals()
 	return true
 
@@ -190,7 +193,7 @@ func _apply_feed(item_id: String) -> bool:
 		nutrition = minf(1.0, nutrition + 0.32)
 		health = maxf(0.1, health - 0.035)
 		game_state.message_requested.emit("This feed is usable, but not ideal", "warning")
-	game_state.advance_objective("care")
+	game_state.register_care_action("feed")
 	care_applied.emit(self)
 	return true
 
@@ -217,21 +220,40 @@ func _build_base() -> void:
 	collision.position.y = 0.36
 	add_child(collision)
 	_load_empty_visual()
-	offshoot_marker = MeshInstance3D.new()
+	soil_visual = MeshInstance3D.new()
+	soil_visual.name = "PreparedSoil"
+	var soil_mesh := CylinderMesh.new()
+	soil_mesh.top_radius = 0.145
+	soil_mesh.bottom_radius = 0.145
+	soil_mesh.height = 0.018
+	soil_mesh.radial_segments = 16
+	soil_visual.mesh = soil_mesh
+	soil_visual.position.y = 0.305
+	soil_material = StandardMaterial3D.new()
+	soil_material.albedo_color = Color("#2c1d14")
+	soil_material.roughness = 1.0
+	soil_visual.material_override = soil_material
+	soil_visual.visible = false
+	visual_root.add_child(soil_visual)
+	var offshoot_resource = load("res://assets/models/props/plant_starter.glb")
+	if offshoot_resource is PackedScene:
+		offshoot_marker = offshoot_resource.instantiate()
+		_hide_starter_plug(offshoot_marker)
+	else:
+		offshoot_marker = Node3D.new()
 	offshoot_marker.name = "OffshootReadyMarker"
-	var marker_mesh := SphereMesh.new()
-	marker_mesh.radius = 0.055
-	marker_mesh.height = 0.11
-	offshoot_marker.mesh = marker_mesh
-	var marker_material := StandardMaterial3D.new()
-	marker_material.albedo_color = Color("#c9e77e")
-	marker_material.emission_enabled = true
-	marker_material.emission = Color("#4d8b46")
-	marker_material.emission_energy_multiplier = 0.65
-	offshoot_marker.material_override = marker_material
-	offshoot_marker.position = Vector3(0.22, 0.43, 0.0)
+	# Keep the daughter shoot on the near rim so dense adult foliage cannot hide it.
+	offshoot_marker.position = Vector3(0.27, 0.20, -0.23)
+	offshoot_marker.scale = Vector3.ONE * 0.80
 	offshoot_marker.visible = false
 	visual_root.add_child(offshoot_marker)
+
+
+func _hide_starter_plug(node: Node) -> void:
+	if node is Node3D and (node.name.contains("fiber") or node.name.contains("soil_top")):
+		node.visible = false
+	for child in node.get_children():
+		_hide_starter_plug(child)
 
 
 func _load_empty_visual() -> void:
@@ -250,6 +272,7 @@ func _load_plant_visual() -> void:
 		plant_visual.queue_free()
 		plant_visual = null
 	growth_parts.clear()
+	health_materials.clear()
 	if species_id.is_empty():
 		return
 	var model_path := str(PlantCatalog.species(species_id).model)
@@ -262,6 +285,7 @@ func _load_plant_visual() -> void:
 	visual_root.add_child(plant_visual)
 	_cache_growth_parts(plant_visual)
 	_apply_mutation_visuals(plant_visual)
+	_cache_health_materials(plant_visual)
 
 
 func _apply_mutation_visuals(node: Node) -> void:
@@ -299,11 +323,40 @@ func _cache_growth_parts(node: Node) -> void:
 		_cache_growth_parts(child)
 
 
+func _cache_health_materials(node: Node) -> void:
+	# The headless dummy renderer cannot own per-instance material overrides.
+	if DisplayServer.get_name() == "headless":
+		return
+	if node is MeshInstance3D and node.mesh:
+		for surface in range(node.mesh.get_surface_count()):
+			var active_material: Material = node.get_active_material(surface)
+			if not active_material is StandardMaterial3D:
+				continue
+			var source := active_material as StandardMaterial3D
+			var base_color := source.albedo_color
+			var looks_like_foliage := base_color.g > base_color.r * 1.03 and base_color.g > base_color.b * 1.03
+			if not looks_like_foliage:
+				continue
+			var local_material := source.duplicate() as StandardMaterial3D
+			node.set_surface_override_material(surface, local_material)
+			health_materials.append({"material": local_material, "base_color": base_color})
+	for child in node.get_children():
+		_cache_health_materials(child)
+
+
 func _update_visuals(force: bool = false) -> void:
 	if not visual_root:
 		return
 	if empty_visual:
 		empty_visual.visible = species_id.is_empty()
+	if soil_visual:
+		soil_visual.visible = species_id.is_empty() and not soil_profile.is_empty()
+		soil_material.albedo_color = {
+			"aroid": Color("#2b1b13"),
+			"moist": Color("#1f1814"),
+			"loam": Color("#493022"),
+			"gritty": Color("#6a5844"),
+		}.get(soil_profile, Color("#2c1d14"))
 	if plant_visual:
 		plant_visual.visible = not species_id.is_empty()
 	for part in growth_parts:
@@ -322,11 +375,20 @@ func _update_visuals(force: bool = false) -> void:
 	if plant_visual:
 		var stress := 1.0 - health
 		plant_visual.rotation.z = sin(Time.get_ticks_msec() * 0.00055 + float(slot_id.hash() % 10)) * 0.008 - stress * 0.09
+		for entry in health_materials:
+			var material := entry.material as StandardMaterial3D
+			if material:
+				material.albedo_color = health_tinted_color(Color(entry.base_color), health)
 	if offshoot_marker:
 		offshoot_marker.visible = offshoot_ready
-		offshoot_marker.scale = Vector3.ONE * (1.0 + sin(Time.get_ticks_msec() * 0.004) * 0.12)
+		offshoot_marker.scale = Vector3.ONE * (0.80 + sin(Time.get_ticks_msec() * 0.004) * 0.018)
 	if force:
 		_visual_accumulator = 0.0
+
+
+static func health_tinted_color(base_color: Color, current_health: float) -> Color:
+	var stress_tint := pow(1.0 - clampf(current_health, 0.0, 1.0), 1.25) * 0.72
+	return base_color.lerp(Color("#8b7446"), stress_tint)
 
 
 func snapshot() -> Dictionary:

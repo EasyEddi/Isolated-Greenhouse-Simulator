@@ -34,6 +34,8 @@ var plants_snapshot: Array = []
 var total_sales: int = 0
 var total_harvests: int = 0
 var session_seconds: float = 0.0
+var next_order_sequence: int = 1
+var tutorial_care_actions: Dictionary = {}
 
 
 func _ready() -> void:
@@ -65,6 +67,8 @@ func new_game() -> void:
 	total_sales = 0
 	total_harvests = 0
 	session_seconds = 0.0
+	next_order_sequence = 1
+	tutorial_care_actions.clear()
 	state_changed.emit()
 	objective_changed.emit(current_objective())
 
@@ -78,6 +82,16 @@ func advance_objective(event: String) -> void:
 	if objective_index < expected.size() and event == expected[objective_index]:
 		objective_index += 1
 		objective_changed.emit(current_objective())
+		state_changed.emit()
+
+
+func register_care_action(action: String) -> void:
+	if objective_index != 4 or action not in ["water", "feed"]:
+		return
+	tutorial_care_actions[action] = true
+	if tutorial_care_actions.has("water") and tutorial_care_actions.has("feed"):
+		advance_objective("care")
+	else:
 		state_changed.emit()
 
 
@@ -113,12 +127,18 @@ func selected_item() -> String:
 
 
 func select_hotbar(index: int) -> void:
+	if hotbar.is_empty():
+		hotbar = _normalized_hotbar([])
 	selected_hotbar_index = posmod(index, hotbar.size())
 	state_changed.emit()
 
 
 func equip_item(item_id: String) -> void:
 	if item_count(item_id) <= 0:
+		return
+	var existing_slot := hotbar.find(item_id)
+	if existing_slot >= 0:
+		select_hotbar(existing_slot)
 		return
 	var item_data := PlantCatalog.item(item_id)
 	var preferred_slot := 3
@@ -185,10 +205,11 @@ func checkout_cart() -> bool:
 		return false
 	currency -= total
 	var order := {
-		"id": "%d-%d" % [Time.get_unix_time_from_system(), pending_orders.size()],
+		"id": "%d-%04d" % [Time.get_unix_time_from_system(), next_order_sequence],
 		"items": cart.duplicate(true),
 		"total": total,
 	}
+	next_order_sequence += 1
 	pending_orders.append(order)
 	cart.clear()
 	delivery_requested.emit(order.duplicate(true))
@@ -250,6 +271,8 @@ func save_game(snapshot: Array = plants_snapshot) -> bool:
 		"total_sales": total_sales,
 		"total_harvests": total_harvests,
 		"session_seconds": session_seconds,
+		"next_order_sequence": next_order_sequence,
+		"tutorial_care_actions": tutorial_care_actions,
 	}
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file == null:
@@ -275,8 +298,8 @@ func load_game() -> Dictionary:
 	for pending_order in Array(payload.get("pending_orders", [])):
 		if pending_order is Dictionary:
 			pending_orders.append(Dictionary(pending_order).duplicate(true))
-	hotbar.assign(Array(payload.get("hotbar", hotbar)))
-	selected_hotbar_index = int(payload.get("selected_hotbar_index", 0))
+	hotbar = _normalized_hotbar(Array(payload.get("hotbar", hotbar)))
+	selected_hotbar_index = clampi(int(payload.get("selected_hotbar_index", 0)), 0, hotbar.size() - 1)
 	watering_can_liters = float(payload.get("watering_can_liters", watering_can_capacity))
 	watering_can_empty_notified = watering_can_liters <= 0.001
 	objective_index = int(payload.get("objective_index", 0))
@@ -284,6 +307,8 @@ func load_game() -> Dictionary:
 	total_sales = int(payload.get("total_sales", 0))
 	total_harvests = int(payload.get("total_harvests", 0))
 	session_seconds = float(payload.get("session_seconds", 0.0))
+	next_order_sequence = maxi(1, int(payload.get("next_order_sequence", 1)))
+	tutorial_care_actions = Dictionary(payload.get("tutorial_care_actions", {})).duplicate(true)
 	state_changed.emit()
 	objective_changed.emit(current_objective())
 	return payload
@@ -295,3 +320,14 @@ func _refresh_dynamic_hotbar(item_id: String) -> void:
 		hotbar[3] = item_id
 	if data.get("kind") in ["starter", "offshoot"] and (hotbar[4].is_empty() or item_count(hotbar[4]) <= 0):
 		hotbar[4] = item_id
+
+
+func _normalized_hotbar(source: Array) -> Array[String]:
+	var defaults: Array[String] = ["watering_can", "trowel", "secateurs", "soil:aroid", "feed:foliage"]
+	var result: Array[String] = []
+	for index in range(defaults.size()):
+		var item_id := str(source[index]) if index < source.size() else defaults[index]
+		if item_id.is_empty() or PlantCatalog.item(item_id).is_empty():
+			item_id = defaults[index]
+		result.append(item_id)
+	return result

@@ -75,6 +75,11 @@ func _test_economy_and_save() -> void:
 	state.new_game()
 	_expect(state.currency == 85, "new shift starts with 85 leaves")
 	_expect(state.item_count("watering_can") == 1, "watering can starts on the rack")
+	var original_hotbar := state.hotbar.duplicate()
+	state.equip_item("watering_can")
+	_expect(state.selected_hotbar_index == 0 and state.hotbar == original_hotbar, "equipping an existing tool selects without duplicating it")
+	var repaired_hotbar := state._normalized_hotbar(["watering_can", "unknown:item"])
+	_expect(repaired_hotbar.size() == 5 and repaired_hotbar[1] == "trowel", "short or invalid save hotbars repair to five usable slots")
 	var empty_warnings := [0]
 	state.message_requested.connect(func(_text, tone):
 		if tone == "warning":
@@ -101,6 +106,16 @@ func _test_economy_and_save() -> void:
 	_expect(state.pending_orders.is_empty(), "collection clears pending order")
 	_expect(state.item_count("starter:mint") == 1, "collection grants starter")
 	_expect(state.objective_index == 2, "collection advances onboarding")
+	state.objective_index = 4
+	state.register_care_action("water")
+	_expect(state.objective_index == 4, "watering alone does not complete the two-part care objective")
+	state.register_care_action("feed")
+	_expect(state.objective_index == 5, "watering and feeding complete the care objective together")
+	_expect(state.add_to_cart("starter:mint"), "a rapid follow-up order enters the cart")
+	_expect(state.checkout_cart(), "a rapid follow-up order checks out")
+	var follow_up_order: Dictionary = state.pending_orders[0]
+	_expect(str(follow_up_order.id) != str(order.id), "rapid consecutive orders receive unique ids")
+	state.collect_delivery(str(follow_up_order.id), Dictionary(follow_up_order.items))
 	var before_failed_checkout := state.currency
 	state.cart = {"starter:alocasia_polly": 100}
 	_expect(not state.checkout_cart(), "unaffordable order is rejected")
@@ -108,6 +123,10 @@ func _test_economy_and_save() -> void:
 	state.cart.clear()
 	state.currency = 123
 	state.add_item("offshoot:mint", 2)
+	state.tutorial_care_actions = {"water": true}
+	_expect(state.add_to_cart("soil:loam"), "pending save test order enters cart")
+	_expect(state.checkout_cart(), "pending save test order checks out")
+	var saved_order_id := str(state.pending_orders[0].id)
 	var snapshot := [{"slot_id": "test", "species_id": "mint", "growth": 0.5}]
 	_expect(state.save_game(snapshot), "save file writes")
 	var loaded := GreenhouseGameState.new()
@@ -115,9 +134,11 @@ func _test_economy_and_save() -> void:
 	await process_frame
 	var payload := loaded.load_game()
 	_expect(not payload.is_empty(), "save file loads")
-	_expect(loaded.currency == 123, "currency round-trips")
+	_expect(loaded.currency == 116, "currency round-trips")
 	_expect(loaded.item_count("offshoot:mint") == 2, "inventory round-trips")
 	_expect(loaded.plants_snapshot.size() == 1, "plant snapshots round-trip")
+	_expect(bool(loaded.tutorial_care_actions.get("water", false)), "partial care tutorial progress round-trips")
+	_expect(loaded.pending_orders.size() == 1 and str(loaded.pending_orders[0].id) == saved_order_id, "pending drone order round-trips")
 	state.queue_free()
 	loaded.queue_free()
 	await process_frame
@@ -217,15 +238,20 @@ func _test_world_and_plants() -> void:
 			mutation_count += 1
 	_expect(empty_slot != null, "world leaves preparation space for the player")
 	_expect(mutation_count == 2, "world contains two discoverable rare specimens")
+	var healthy_color := Color("#4e9b61")
+	var stressed_color := GreenhousePlantActor.health_tinted_color(healthy_color, 0.10)
+	_expect(not stressed_color.is_equal_approx(healthy_color), "poor health computes visible foliage discoloration")
 	if empty_slot:
 		empty_slot.mutation_chance = 0.0
 		state.add_item("soil:moist")
 		state.add_item("starter:mint")
 		state.add_item("feed:herb")
 		_expect(empty_slot.interact(null, "soil:moist"), "correct soil can enter empty pot")
+		_expect(empty_slot.soil_visual.visible, "prepared soil is visibly present in empty pot")
 		_expect(not empty_slot.interact(null, "starter:mint"), "starter cannot bypass soil preparation")
 		_expect(empty_slot.interact(null, "trowel"), "trowel prepares soil")
 		_expect(empty_slot.interact(null, "starter:mint"), "prepared pot accepts starter")
+		_expect(not empty_slot.soil_visual.visible, "prepared soil marker hides after planting")
 		var growth_before := empty_slot.growth
 		empty_slot.moisture = 0.66
 		empty_slot.nutrition = 0.70
@@ -242,7 +268,9 @@ func _test_world_and_plants() -> void:
 		empty_slot.offshoot_progress = 0.999
 		empty_slot._process(1.0)
 		_expect(empty_slot.offshoot_ready, "mature healthy plant produces offshoot")
+		_expect(empty_slot.offshoot_marker.visible, "ready offshoot has a visible daughter plant")
 		_expect(empty_slot.interact(null, "secateurs"), "secateurs harvest ready offshoot")
+		_expect(not empty_slot.offshoot_marker.visible, "daughter plant hides after harvest")
 		var leaves_before_sale := state.currency
 		_expect(state.sell_offshoot("offshoot:mint"), "harvested offshoot sells")
 		_expect(state.currency > leaves_before_sale, "sale awards leaves")

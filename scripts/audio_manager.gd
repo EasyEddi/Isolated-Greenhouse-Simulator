@@ -45,6 +45,7 @@ func bind_plants(plants: Array[GreenhousePlantActor]) -> void:
 
 
 func shutdown() -> void:
+	set_process(false)
 	for audio_player in [ambient_player, water_player, footstep_player, one_shot_player, drone_player]:
 		if audio_player:
 			audio_player.stop()

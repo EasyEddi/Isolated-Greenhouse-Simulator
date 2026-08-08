@@ -17,15 +17,22 @@ func _run() -> void:
 	root.add_child(game)
 	await process_frame
 	await process_frame
+	_expect(game.get_tree().paused, "start menu pauses the simulation")
+	var start_session_seconds: float = game.game_state.session_seconds
+	await create_timer(0.15, true).timeout
+	_expect(is_equal_approx(game.game_state.session_seconds, start_session_seconds), "world time does not advance behind the start menu")
 	game._begin_shift(false)
 	await process_frame
 
 	await _test_terminal_camera(game)
 	await _test_interaction_focus(game)
 	await _test_hall_collision(game)
+	await _test_pause_freezes_simulation(game)
 	await _test_realtime_delivery(game)
+	await _test_queued_deliveries(game)
 
 	game.audio_manager.shutdown()
+	await create_timer(0.20, true).timeout
 	game.queue_free()
 	await process_frame
 	await process_frame
@@ -70,6 +77,19 @@ func _test_interaction_focus(game) -> void:
 	game.player._update_focus()
 	_expect(game.player.focused_target == game.world.terminal_interactable, "fixed desk view raycasts the terminal")
 	_expect(game.player.focused_prompt.begins_with("F"), "terminal advertises the F interaction")
+	_send_action(game.player, "terminal")
+	var open_deadline := Time.get_ticks_msec() + 2200
+	while (not game.terminal_active or game.terminal_transitioning) and Time.get_ticks_msec() < open_deadline:
+		await process_frame
+	_expect(game.terminal_active and game.terminal_ui.visible, "F opens the terminal through the real input path")
+	_send_action(game.player, "interact")
+	await process_frame
+	_expect(game.terminal_active, "E is ignored while the terminal owns input")
+	_send_action(game.player, "pause")
+	var close_deadline := Time.get_ticks_msec() + 2200
+	while (game.terminal_active or game.terminal_transitioning) and Time.get_ticks_msec() < close_deadline:
+		await process_frame
+	_expect(not game.terminal_active and game.player.gameplay_enabled, "Escape exits the terminal and restores movement")
 
 	game.player.global_position = Vector3(-10.77, 0.05, -4.72)
 	game.player.rotation.y = 0.0
@@ -93,6 +113,23 @@ func _test_hall_collision(game) -> void:
 	Input.action_release("move_forward")
 	_expect(game.player.global_position.x < 11.48, "outer hall wall blocks first-person movement")
 	_expect(game.player.is_on_floor(), "player remains grounded after collision test")
+
+
+func _test_pause_freezes_simulation(game) -> void:
+	var observed_plant: GreenhousePlantActor = game.world.plant_actors[0]
+	var growth_before := observed_plant.growth
+	var session_before: float = float(game.game_state.session_seconds)
+	var position_before: Vector3 = Vector3(game.player.global_position)
+	_send_action(game.player, "pause")
+	await process_frame
+	_expect(game.get_tree().paused and game.hud.pause_open, "pause menu pauses the scene tree")
+	await create_timer(0.25, true).timeout
+	_expect(is_equal_approx(observed_plant.growth, growth_before), "plant growth freezes while paused")
+	_expect(is_equal_approx(game.game_state.session_seconds, session_before), "session time freezes while paused")
+	_expect(game.player.global_position.distance_to(position_before) < 0.001, "player remains fixed while paused")
+	_send_action(game.player, "pause")
+	await process_frame
+	_expect(not game.get_tree().paused and not game.hud.pause_open, "resume unpauses the simulation")
 
 
 func _test_realtime_delivery(game) -> void:
@@ -122,12 +159,42 @@ func _test_realtime_delivery(game) -> void:
 	_expect(game.game_state.item_count("starter:mint") == mint_before + 1, "crate collection grants its exact contents")
 
 
+func _test_queued_deliveries(game) -> void:
+	game.game_state.currency = 200
+	game.game_state.cart.clear()
+	_expect(game.game_state.add_to_cart("starter:lily"), "first queued order accepts stock")
+	_expect(game.game_state.checkout_cart(), "first queued order checks out")
+	var first_id := str(game.game_state.pending_orders[0].id)
+	_expect(game.game_state.add_to_cart("soil:loam"), "second queued order accepts stock")
+	_expect(game.game_state.checkout_cart(), "second queued order checks out")
+	var second_id := str(game.game_state.pending_orders[1].id)
+	_expect(game.drone.order_queue.size() == 1, "second delivery waits behind the active drone run")
+	game.drone.force_complete_active_delivery()
+	_expect(str(game.drone.crate_order.id) == first_id, "first queued order lands first")
+	_expect(game.drone.delivery_crate.interact(game.player, ""), "first queued crate can be collected")
+	await process_frame
+	await process_frame
+	_expect(str(game.drone.active_order.id) == second_id, "drone automatically starts the next queued order")
+	game.drone.force_complete_active_delivery()
+	_expect(str(game.drone.crate_order.id) == second_id, "second queued order lands second")
+	_expect(game.drone.delivery_crate.interact(game.player, ""), "second queued crate can be collected")
+	await process_frame
+	_expect(game.game_state.pending_orders.is_empty(), "collecting both crates clears the delivery queue")
+
+
 func _expect(condition: bool, message: String) -> void:
 	checks += 1
 	if condition:
 		print("  PASS: %s" % message)
 	else:
 		failures.append(message)
+
+
+func _send_action(target: Node, action: StringName) -> void:
+	var event := InputEventAction.new()
+	event.action = action
+	event.pressed = true
+	target._unhandled_input(event)
 
 
 func _backup_save() -> void:

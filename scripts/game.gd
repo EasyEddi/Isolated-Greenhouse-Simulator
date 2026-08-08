@@ -317,6 +317,9 @@ func _run_capture_mode(args: Array) -> void:
 		"nursery_right": [Vector3(6.9, 0.05, 2.78), PI, -0.26],
 		"nursery_back": [Vector3(2.4, 0.05, 3.12), 0.0, -0.26],
 		"mutation": [Vector3(8.25, 0.05, 2.88), PI, -0.31],
+		"stress": [Vector3(2.85, 0.05, 2.88), PI, -0.29],
+		"soil_pot": [Vector3(1.05, 0.05, 3.12), 0.0, -0.29],
+		"offshoot": [Vector3(2.85, 0.05, 2.88), PI, -0.29],
 		"greenhouse_inside": [Vector3(7.0, 0.05, -4.92), 0.0, -0.22],
 		"water_station": [Vector3(-9.0, 0.05, -5.8), 0.68, -0.16],
 		"watering": [Vector3(2.85, 0.05, 2.78), PI, -0.26],
@@ -373,6 +376,28 @@ func _run_capture_mode(args: Array) -> void:
 		player.held_root.visible = false
 		if world.plant_actors.size() > 7:
 			hud.show_plant(world.plant_actors[7])
+	elif capture_view == "stress":
+		player.held_root.visible = false
+		var stressed_plant: GreenhousePlantActor = world.plant_actors[2]
+		stressed_plant.health = 0.12
+		stressed_plant.moisture = 0.02
+		stressed_plant._update_visuals(true)
+		hud.show_plant(stressed_plant)
+	elif capture_view == "soil_pot":
+		player.held_root.visible = false
+		for plant in world.plant_actors:
+			if plant.species_id.is_empty():
+				game_state.add_item("soil:loam")
+				plant.interact(player, "soil:loam")
+				hud.show_plant(plant)
+				break
+	elif capture_view == "offshoot":
+		player.held_root.visible = false
+		var offshoot_plant: GreenhousePlantActor = world.plant_actors[2]
+		offshoot_plant.offshoot_progress = 1.0
+		offshoot_plant.offshoot_ready = true
+		offshoot_plant._update_visuals(true)
+		hud.show_plant(offshoot_plant)
 	elif capture_view.begins_with("nursery_") or capture_view in ["greenhouse_inside", "water_station"]:
 		player.held_root.visible = false
 	elif capture_view == "delivery_drone":
