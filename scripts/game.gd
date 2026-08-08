@@ -485,11 +485,17 @@ func _run_capture_mode(args: Array) -> void:
 		if drone.empty_visual:
 			drone.empty_visual.visible = true
 	elif capture_view == "inventory":
+		for item_id in ["starter:lily", "starter:mint", "offshoot:monstera_deliciosa#variegated", "soil:moist", "feed:bloom", "feed:herb"]:
+			game_state.add_item(item_id)
+		game_state.equip_item("starter:lily")
 		hud.toggle_inventory()
 	elif capture_view == "journal":
 		hud.toggle_inventory()
 		hud._show_journal_tab()
 	elif capture_view == "pause":
+		game_state.session_seconds = 3723.0
+		game_state.total_harvests = 12
+		game_state.total_sales = 486
 		hud.toggle_pause()
 	await get_tree().create_timer(1.2).timeout
 	var output_path := "user://isolated-greenhouse-capture.png"

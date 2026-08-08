@@ -33,6 +33,7 @@ var journal_grid: GridContainer
 var inventory_content: Control
 var journal_content: Control
 var pause_overlay: Control
+var shift_summary_label: Label
 var start_overlay: Control
 var continue_button: Button
 var inventory_open := false
@@ -71,6 +72,8 @@ func configure(state: GreenhouseGameState, controlled_player: GreenhousePlayer, 
 func _process(_delta: float) -> void:
 	if is_instance_valid(inspected_plant) and plant_panel.visible:
 		_refresh_plant_panel(inspected_plant)
+	if pause_open and shift_summary_label:
+		_refresh_shift_summary()
 
 
 func show_start_menu(has_save: bool) -> void:
@@ -422,8 +425,8 @@ func _build_pause() -> void:
 	root.add_child(pause_overlay)
 	var frame := PanelContainer.new()
 	frame.set_anchors_preset(Control.PRESET_CENTER)
-	frame.position = Vector2(-220, -250)
-	frame.size = Vector2(440, 500)
+	frame.position = Vector2(-220, -290)
+	frame.size = Vector2(440, 580)
 	frame.add_theme_stylebox_override("panel", _style(palette.panel, palette.line, 2, 5, 24))
 	pause_overlay.add_child(frame)
 	var column := VBoxContainer.new()
@@ -466,6 +469,15 @@ func _build_pause() -> void:
 	fullscreen_toggle.add_theme_font_size_override("font_size", 14)
 	fullscreen_toggle.add_theme_color_override("font_color", palette.text)
 	column.add_child(fullscreen_toggle)
+	var summary_separator := HSeparator.new()
+	summary_separator.add_theme_color_override("separator", palette.line.darkened(0.25))
+	column.add_child(summary_separator)
+	shift_summary_label = Label.new()
+	shift_summary_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	shift_summary_label.add_theme_font_size_override("font_size", 13)
+	shift_summary_label.add_theme_color_override("font_color", palette.muted)
+	column.add_child(shift_summary_label)
+	_refresh_shift_summary()
 	var spacer := Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	column.add_child(spacer)
@@ -483,6 +495,26 @@ func _build_pause() -> void:
 func _set_look_sensitivity(value: float) -> void:
 	player.mouse_sensitivity = float(value)
 	settings.set_look_sensitivity(float(value))
+
+
+func _refresh_shift_summary() -> void:
+	if not shift_summary_label:
+		return
+	shift_summary_label.text = "SHIFT RECORD\n%s  |  %d HARVESTS  |  %d LEAVES SOLD" % [
+		format_shift_duration(game_state.session_seconds),
+		game_state.total_harvests,
+		game_state.total_sales,
+	]
+
+
+static func format_shift_duration(seconds: float) -> String:
+	var total_seconds := maxi(0, int(seconds))
+	var hours := total_seconds / 3600
+	var minutes := (total_seconds % 3600) / 60
+	var remaining_seconds := total_seconds % 60
+	if hours > 0:
+		return "%d:%02d:%02d" % [hours, minutes, remaining_seconds]
+	return "%02d:%02d" % [minutes, remaining_seconds]
 
 
 func _build_start_menu() -> void:
@@ -532,7 +564,7 @@ func _refresh_state() -> void:
 	for index in range(hotbar_buttons.size()):
 		var item_id := game_state.hotbar[index]
 		var data := PlantCatalog.item(item_id)
-		hotbar_icons[index].icon_kind = str(data.get("icon", "leaf"))
+		_configure_item_icon(hotbar_icons[index], item_id, data)
 		var count := game_state.item_count(item_id)
 		hotbar_counts[index].text = str(count) if count > 1 else ""
 		var active := index == game_state.selected_hotbar_index
@@ -603,7 +635,7 @@ func _rebuild_inventory() -> void:
 		column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		button.add_child(column)
 		var icon := GreenhouseIcon.new()
-		icon.icon_kind = str(data.icon)
+		_configure_item_icon(icon, str(item_id), data)
 		icon.custom_minimum_size = Vector2(52, 52)
 		column.add_child(icon)
 		var label := Label.new()
@@ -652,6 +684,26 @@ func _water_label(rate: float) -> String:
 	if rate >= 0.0035:
 		return "medium"
 	return "low"
+
+
+func _configure_item_icon(icon: GreenhouseIcon, item_id: String, data: Dictionary) -> void:
+	icon.icon_color = Color("#9ee6a6")
+	icon.secondary_color = Color("#4e9a72")
+	icon.icon_kind = str(data.get("icon", "leaf"))
+	var kind := str(data.get("kind", ""))
+	if kind not in ["starter", "offshoot"]:
+		return
+	var species_id := str(data.get("species", ""))
+	var species := PlantCatalog.species(species_id)
+	if species.is_empty():
+		return
+	icon.icon_kind = "species:%s" % species_id
+	if str(data.get("mutation", "")) == "variegated":
+		icon.icon_color = Color("#dce8ae")
+		icon.secondary_color = Color("#72a66b")
+	else:
+		icon.icon_color = Color(species.accent)
+		icon.secondary_color = Color(species.accent).darkened(0.28)
 
 
 func _modal_backdrop() -> ColorRect:

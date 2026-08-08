@@ -35,6 +35,8 @@ The zones use furniture, lighting, floor wear, and sight lines rather than color
 9. Replant the offshoot to expand the collection, or sell it through the terminal's collection order.
 10. Reinvest leaf currency into new species and nursery capacity.
 
+The pause panel keeps a quiet shift record of active play time, harvested offshoots, and leaf sales. It is informational only and never introduces a deadline or score penalty.
+
 ## Plant Roster
 
 The first release targets twelve recognizable species across different care profiles:

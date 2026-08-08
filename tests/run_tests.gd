@@ -42,6 +42,8 @@ func _test_catalog() -> void:
 	for item_id in PlantCatalog.CARE_ITEM_ACCENTS:
 		care_accents[PlantCatalog.care_item_accent(item_id).to_html()] = true
 	_expect(care_accents.size() == 8, "all care profiles have distinct visual accents")
+	_expect(GreenhouseHUD.format_shift_duration(125.9) == "02:05", "shift duration formats minute sessions")
+	_expect(GreenhouseHUD.format_shift_duration(3723.0) == "1:02:03", "shift duration formats long sessions")
 	var seen_names: Dictionary = {}
 	for species_id in PlantCatalog.species_ids():
 		var data := PlantCatalog.species(species_id)

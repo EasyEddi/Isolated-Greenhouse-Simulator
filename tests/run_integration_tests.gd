@@ -192,6 +192,10 @@ func _test_pause_freezes_simulation(game) -> void:
 
 
 func _test_inventory_escape(game) -> void:
+	game.game_state.add_item("starter:lily")
+	game.game_state.equip_item("starter:lily")
+	await process_frame
+	_expect(game.hud.hotbar_icons[4].icon_kind == "species:lily", "delivered starter keeps its species icon in the hotbar")
 	game.hud.toggle_inventory()
 	_expect(game.hud.inventory_open and not game.player.gameplay_enabled, "inventory opens and locks movement")
 	_send_action(game.player, "pause")
@@ -199,6 +203,8 @@ func _test_inventory_escape(game) -> void:
 	_expect(not game.hud.inventory_open, "Escape closes the inventory")
 	_expect(not game.hud.pause_open and not game.get_tree().paused, "closing inventory does not also open pause")
 	_expect(game.player.gameplay_enabled, "closing inventory restores movement")
+	game.game_state.hotbar[4] = "feed:foliage"
+	game.game_state.select_hotbar(0)
 
 
 func _test_realtime_delivery(game) -> void:
