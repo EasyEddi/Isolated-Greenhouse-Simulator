@@ -3,7 +3,7 @@
 ## Automated Coverage
 
 - Headless editor import: pass, no stderr output.
-- Simulation and state suite: `516/516` checks passing.
+- Simulation and state suite: `524/524` checks passing.
 - Scene integration suite: `90/90` checks passing, no stderr output.
 - Complete purchase, drone delivery, pot preparation, care, two offshoot harvests, propagation, sale, and save smoke path: pass.
 - Guided-shift completion: the complete smoke path advances every objective and reaches open-ended nursery play.
@@ -26,6 +26,7 @@
 - Live care readouts distinguish drought, dry, ideal, wet, and waterlogged soil while showing whether the applied soil and feed match the species profile.
 - Every plant GLB imports as a packed scene with rendered surfaces, at least 100 vertices, complete normals, indexed triangles, multiple authored materials, finite non-empty bounds, no non-finite positions, and multiple continuous-growth parts.
 - All eight soil and feed profiles use distinct, consistent icon accents across the terminal, inventory, and hotbar.
+- All eleven runtime sounds import with nonzero duration; offline PCM analysis confirms non-silent levels, consistent footsteps, and no clipping.
 - Delivered starters and offshoots retain species-specific silhouettes; variegated stock keeps its mutation palette.
 - The pause panel displays saved session time, harvest count, and leaf sales without overlapping controls at compact or standard resolutions.
 - Storage rows keep soil on brown lower pads and fertilizer on green upper pads; stored bags lie on individual slots.

@@ -94,7 +94,10 @@ func _test_asset_manifest() -> void:
 	]
 	for prop_name in props:
 		_expect(FileAccess.file_exists("res://assets/models/props/%s.glb" % prop_name), "%s prop exists" % prop_name)
-	for sound_name in ["ambient_hall", "water_pour", "drone_motor", "ui_confirm", "ui_warning", "delivery", "harvest"]:
+	for sound_name in [
+		"ambient_hall", "water_pour", "drone_motor", "ui_confirm", "ui_warning", "delivery", "harvest",
+		"footstep_1", "footstep_2", "footstep_3", "footstep_4",
+	]:
 		var path := "res://assets/audio/%s.wav" % sound_name
 		_expect(FileAccess.file_exists(path), "%s sound exists" % sound_name)
 		var stream = load(path)
