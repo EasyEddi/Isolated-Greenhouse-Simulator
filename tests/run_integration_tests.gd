@@ -30,6 +30,7 @@ func _run() -> void:
 	await _test_pause_freezes_simulation(game)
 	await _test_realtime_delivery(game)
 	await _test_queued_deliveries(game)
+	await _test_full_save_restore(game)
 
 	game.audio_manager.shutdown()
 	await create_timer(0.20, true).timeout
@@ -99,6 +100,15 @@ func _test_interaction_focus(game) -> void:
 	game.player._update_focus()
 	_expect(game.player.focused_target == game.world.faucet_interactable, "utility sink raycasts the faucet")
 	_expect(game.player.focused_prompt.begins_with("E"), "faucet advertises the E interaction")
+
+	game.player.global_position = Vector3(-5.45, 0.05, 6.72)
+	game.player.rotation.y = PI
+	game.player.look_pitch = -0.38
+	game.player.camera_pivot.rotation.x = -0.38
+	await physics_frame
+	game.player._update_focus()
+	_expect(game.player.focused_target == game.world.storage_slots[6], "storage raycast reaches the front shelf slot")
+	_expect(game.player.focused_prompt.begins_with("E  Take"), "occupied shelf slot advertises retrieval in first person")
 
 
 func _test_hall_collision(game) -> void:
@@ -180,6 +190,32 @@ func _test_queued_deliveries(game) -> void:
 	_expect(game.drone.delivery_crate.interact(game.player, ""), "second queued crate can be collected")
 	await process_frame
 	_expect(game.game_state.pending_orders.is_empty(), "collecting both crates clears the delivery queue")
+
+
+func _test_full_save_restore(game) -> void:
+	var saved_slot: GreenhouseStorageSlot = game.world.storage_slots[6]
+	var saved_item := saved_slot.stored_item_id
+	var inventory_before: int = int(game.game_state.item_count(saved_item))
+	_expect(saved_slot.interact(game.player, ""), "save test retrieves a stored supply")
+	game.world.plant_actors[0].growth = 0.4242
+	game.game_state.currency = 137
+	_expect(game.game_state.save_game(game.world.plant_snapshots(), game.world.storage_snapshots()), "full game save writes plant and shelf state")
+
+	var scene := load("res://scenes/main.tscn") as PackedScene
+	var restored_game = scene.instantiate()
+	root.add_child(restored_game)
+	await process_frame
+	await process_frame
+	restored_game._begin_shift(true)
+	await process_frame
+	_expect(restored_game.game_state.currency == 137, "full load restores leaf balance")
+	_expect(is_equal_approx(restored_game.world.plant_actors[0].growth, 0.4242), "full load restores continuous plant growth")
+	_expect(restored_game.world.storage_slots[6].stored_item_id.is_empty(), "full load preserves an emptied shelf slot")
+	_expect(restored_game.game_state.item_count(saved_item) == inventory_before + 1, "full load preserves the retrieved shelf item")
+	restored_game.audio_manager.shutdown()
+	await create_timer(0.20, true).timeout
+	restored_game.queue_free()
+	await process_frame
 
 
 func _expect(condition: bool, message: String) -> void:

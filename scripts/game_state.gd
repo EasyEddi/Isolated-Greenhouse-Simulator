@@ -31,6 +31,7 @@ var watering_can_capacity: float = 4.0
 var watering_can_empty_notified := false
 var objective_index: int = 0
 var plants_snapshot: Array = []
+var storage_snapshot: Array = []
 var total_sales: int = 0
 var total_harvests: int = 0
 var session_seconds: float = 0.0
@@ -64,6 +65,7 @@ func new_game() -> void:
 	watering_can_empty_notified = false
 	objective_index = 0
 	plants_snapshot.clear()
+	storage_snapshot.clear()
 	total_sales = 0
 	total_harvests = 0
 	session_seconds = 0.0
@@ -256,8 +258,13 @@ func set_plants_snapshot(snapshot: Array) -> void:
 	plants_snapshot = snapshot.duplicate(true)
 
 
-func save_game(snapshot: Array = plants_snapshot) -> bool:
+func set_storage_snapshot(snapshot: Array) -> void:
+	storage_snapshot = snapshot.duplicate(true)
+
+
+func save_game(snapshot: Array = plants_snapshot, stored_items: Array = storage_snapshot) -> bool:
 	set_plants_snapshot(snapshot)
+	set_storage_snapshot(stored_items)
 	var payload := {
 		"version": SAVE_VERSION,
 		"currency": currency,
@@ -268,6 +275,7 @@ func save_game(snapshot: Array = plants_snapshot) -> bool:
 		"watering_can_liters": watering_can_liters,
 		"objective_index": objective_index,
 		"plants": plants_snapshot,
+		"storage": storage_snapshot,
 		"total_sales": total_sales,
 		"total_harvests": total_harvests,
 		"session_seconds": session_seconds,
@@ -304,6 +312,7 @@ func load_game() -> Dictionary:
 	watering_can_empty_notified = watering_can_liters <= 0.001
 	objective_index = int(payload.get("objective_index", 0))
 	plants_snapshot = Array(payload.get("plants", [])).duplicate(true)
+	storage_snapshot = Array(payload.get("storage", [])).duplicate(true)
 	total_sales = int(payload.get("total_sales", 0))
 	total_harvests = int(payload.get("total_harvests", 0))
 	session_seconds = float(payload.get("session_seconds", 0.0))

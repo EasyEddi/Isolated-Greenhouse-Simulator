@@ -15,6 +15,7 @@
 - `player.gd`: first-person movement, focus ray, held-item presentation, and input modes.
 - `plant_catalog.gd`: immutable species and item definitions.
 - `plant_actor.gd`: per-pot care simulation, visuals, growth, and harvest interaction.
+- `storage_slot.gd`: atomic shelf transfers, stored-item presentation, prompts, and stable slot snapshots.
 - `game_state.gd`: inventory, economy, objectives, deliveries, and save snapshot.
 - `terminal_ui.gd`: shop, offshoot sales, cart state, and delivery feedback.
 - `drone_controller.gd`: physical delivery sequence and crate state.
@@ -23,8 +24,8 @@
 ## Validation Gates
 
 1. Headless editor import exits without parse or resource errors.
-2. Unit tests cover catalog integrity, purchases, deliveries, care calculations, growth, harvesting, selling, and save round-trips.
-3. Scene audit checks required departments, collisions, interactions, lights, and plant slots.
+2. Unit tests cover catalog integrity, purchases, queued deliveries, storage transfers, care calculations, growth, harvesting, selling, and save round-trips.
+3. Scene audit checks required departments, collisions, interactions, lights, plant slots, and shelf slots.
 4. Automated smoke mode runs a complete purchase-to-sale loop without human input.
 5. The exported Windows executable launches in headless smoke mode and exits successfully.
 6. A hidden-window visual capture is inspected for framing, blank rendering, and HUD overlap.

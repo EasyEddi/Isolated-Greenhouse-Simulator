@@ -10,6 +10,7 @@ Isolated Greenhouse is a calm first-person plant-care and greenhouse-management 
 
 - Twelve distinct plant species with continuous model growth and individual water, soil, and feed requirements.
 - A physical first-person loop spanning the office, storage, nursery, greenhouse, utility sink, and delivery bay.
+- Twelve individual shelf slots for visibly storing and retrieving supplies, equipment, and plant stock without item loss.
 - A fixed-camera online terminal, cart, categorized stock, leaf currency, and animated drone deliveries.
 - Press-and-hold watering, recoverable drought and overwatering stress, fertilizer compatibility, and persistent plant health.
 - Mature offshoot harvesting and sales, including rare persistent variegation with premium value.
@@ -44,4 +45,4 @@ godot --headless --path . --script res://tests/run_integration_tests.gd
 godot --headless --path . --export-release "Windows Desktop" build/IsolatedGreenhouse_0.1.0.exe
 ```
 
-See [Documentation/DESIGN-BIBLE.md](Documentation/DESIGN-BIBLE.md) for the gameplay scope and [Documentation/TECHNICAL.md](Documentation/TECHNICAL.md) for architecture and validation.
+See [Documentation/DESIGN-BIBLE.md](Documentation/DESIGN-BIBLE.md) for the gameplay scope, [Documentation/TECHNICAL.md](Documentation/TECHNICAL.md) for architecture, and [Documentation/QA-REPORT.md](Documentation/QA-REPORT.md) for the verified release gates.

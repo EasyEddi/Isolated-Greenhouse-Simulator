@@ -27,12 +27,13 @@ The zones use furniture, lighting, floor wear, and sight lines rather than color
 1. Inspect current plants and the objective board.
 2. Use the office terminal to order a starter, the matching soil blend, fertilizer, or equipment.
 3. Watch the delivery drone enter the hall and place a crate on the delivery pad.
-4. Collect the crate into the inventory and prepare a pot at a nursery bench.
-5. Plant, water, and fertilize according to the species profile.
-6. Observe continuous growth and react to changing moisture, nutrition, and health.
-7. Harvest a healthy offshoot with secateurs once the plant is mature.
-8. Sell the offshoot through the terminal's collection order.
-9. Reinvest leaf currency into new species and nursery capacity.
+4. Collect the crate into the inventory and organize spare stock on individual storage shelf slots.
+5. Retrieve the required supply and prepare a pot at a nursery bench.
+6. Plant, water, and fertilize according to the species profile.
+7. Observe continuous growth and react to changing moisture, nutrition, and health.
+8. Harvest a healthy offshoot with secateurs once the plant is mature.
+9. Sell the offshoot through the terminal's collection order.
+10. Reinvest leaf currency into new species and nursery capacity.
 
 ## Plant Roster
 
@@ -61,6 +62,7 @@ The first release targets twelve recognizable species across different care prof
 - Correct fertilizer produces steady nutrition. Incorrect fertilizer provides less nutrition and can temporarily stress the plant.
 - Watering is press-and-hold, consumes the can reservoir, and fills moisture over time.
 - Overwatering and drought both matter, but neither instantly kills a plant. Visible stress gives the player time to recover.
+- Stress progressively droops and discolors foliage, while recovery restores the species' healthy color.
 - Healthy mature plants build offshoot progress. Secateurs convert a ready offshoot into a sellable inventory item.
 - Newly planted starters have a `5.5%` chance to develop a variegation mutation. Pale leaf sectors persist through saves, pass into harvested stock, and raise the offshoot value by `1.65x`.
 

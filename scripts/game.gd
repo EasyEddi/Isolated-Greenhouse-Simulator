@@ -39,7 +39,7 @@ func _ready() -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST and game_state and world:
-		game_state.save_game(world.plant_snapshots())
+		game_state.save_game(world.plant_snapshots(), world.storage_snapshots())
 
 
 func _build_game() -> void:
@@ -108,11 +108,17 @@ func _begin_shift(load_existing: bool) -> void:
 			world.reset_plants()
 		else:
 			world.restore_plant_snapshots(Array(payload.get("plants", [])))
+			var stored_items := Array(payload.get("storage", []))
+			if stored_items.is_empty():
+				world.reset_storage()
+			else:
+				world.restore_storage_snapshots(stored_items)
 			for pending_order in game_state.pending_orders:
 				drone.queue_order(Dictionary(pending_order))
 	else:
 		game_state.new_game()
 		world.reset_plants()
+		world.reset_storage()
 	hud.close_start_menu()
 	hud.show_message("Shift started. Take your time.", "neutral")
 
@@ -177,19 +183,19 @@ func _on_pause_requested() -> void:
 
 
 func _save_game() -> void:
-	game_state.save_game(world.plant_snapshots())
+	game_state.save_game(world.plant_snapshots(), world.storage_snapshots())
 	hud.close_overlays()
 
 
 func _autosave() -> void:
 	if hud.start_open or terminal_transitioning:
 		return
-	game_state.save_game(world.plant_snapshots())
+	game_state.save_game(world.plant_snapshots(), world.storage_snapshots())
 
 
 func _quit_game() -> void:
 	if not hud.start_open:
-		game_state.save_game(world.plant_snapshots())
+		game_state.save_game(world.plant_snapshots(), world.storage_snapshots())
 	get_tree().quit()
 
 
@@ -239,6 +245,15 @@ func _run_smoke_test() -> void:
 	_expect(world.plant_actors.size() >= 16, "world contains sixteen plant stations", failures)
 	_expect(world.terminal_interactable != null, "shop terminal exists", failures)
 	_expect(world.delivery_root != null, "delivery department exists", failures)
+	_expect(world.storage_slots.size() == 12, "storage department has twelve usable shelf slots", failures)
+	if not world.storage_slots.is_empty():
+		var shelf_slot: GreenhouseStorageSlot = world.storage_slots[0]
+		var shelf_item := shelf_slot.stored_item_id
+		var shelf_count_before := game_state.item_count(shelf_item)
+		_expect(shelf_slot.interact(player, ""), "stored supply can be taken from shelf", failures)
+		_expect(game_state.item_count(shelf_item) == shelf_count_before + 1, "taking shelf stock returns exactly one item", failures)
+		_expect(shelf_slot.interact(player, shelf_item), "inventory supply can be stored again", failures)
+		_expect(game_state.item_count(shelf_item) == shelf_count_before, "storing shelf stock removes exactly one item", failures)
 
 	game_state.currency = 200
 	game_state.cart.clear()
@@ -276,7 +291,7 @@ func _run_smoke_test() -> void:
 		_expect(empty_slot.interact(player, "secateurs"), "offshoot can be harvested", failures)
 		_expect(game_state.sell_offshoot("offshoot:mint"), "offshoot can be sold", failures)
 
-	_expect(game_state.save_game(world.plant_snapshots()), "save game can be written", failures)
+	_expect(game_state.save_game(world.plant_snapshots(), world.storage_snapshots()), "save game can be written", failures)
 	audio_manager.shutdown()
 	audio_manager.queue_free()
 	if hud.message_tween and hud.message_tween.is_running():
@@ -320,6 +335,7 @@ func _run_capture_mode(args: Array) -> void:
 		"stress": [Vector3(2.85, 0.05, 2.88), PI, -0.29],
 		"soil_pot": [Vector3(1.05, 0.05, 3.12), 0.0, -0.29],
 		"offshoot": [Vector3(2.85, 0.05, 2.88), PI, -0.29],
+		"storage": [Vector3(-3.0, 0.05, 5.25), PI, -0.08],
 		"greenhouse_inside": [Vector3(7.0, 0.05, -4.92), 0.0, -0.22],
 		"water_station": [Vector3(-9.0, 0.05, -5.8), 0.68, -0.16],
 		"watering": [Vector3(2.85, 0.05, 2.78), PI, -0.26],
@@ -398,7 +414,7 @@ func _run_capture_mode(args: Array) -> void:
 		offshoot_plant.offshoot_ready = true
 		offshoot_plant._update_visuals(true)
 		hud.show_plant(offshoot_plant)
-	elif capture_view.begins_with("nursery_") or capture_view in ["greenhouse_inside", "water_station"]:
+	elif capture_view.begins_with("nursery_") or capture_view in ["greenhouse_inside", "water_station", "storage"]:
 		player.held_root.visible = false
 	elif capture_view == "delivery_drone":
 		player.held_root.visible = false

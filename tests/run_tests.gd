@@ -124,6 +124,7 @@ func _test_economy_and_save() -> void:
 	state.currency = 123
 	state.add_item("offshoot:mint", 2)
 	state.tutorial_care_actions = {"water": true}
+	state.storage_snapshot = [{"slot_id": "storage_00", "item_id": "soil:moist"}]
 	_expect(state.add_to_cart("soil:loam"), "pending save test order enters cart")
 	_expect(state.checkout_cart(), "pending save test order checks out")
 	var saved_order_id := str(state.pending_orders[0].id)
@@ -139,6 +140,7 @@ func _test_economy_and_save() -> void:
 	_expect(loaded.plants_snapshot.size() == 1, "plant snapshots round-trip")
 	_expect(bool(loaded.tutorial_care_actions.get("water", false)), "partial care tutorial progress round-trips")
 	_expect(loaded.pending_orders.size() == 1 and str(loaded.pending_orders[0].id) == saved_order_id, "pending drone order round-trips")
+	_expect(loaded.storage_snapshot.size() == 1 and str(loaded.storage_snapshot[0].item_id) == "soil:moist", "storage shelf round-trips")
 	state.queue_free()
 	loaded.queue_free()
 	await process_frame
@@ -225,6 +227,7 @@ func _test_world_and_plants() -> void:
 	_expect(world.delivery_root != null, "world builds delivery department")
 	_expect(world.terminal_interactable != null, "world builds terminal interaction")
 	_expect(world.faucet_interactable != null, "world builds faucet interaction")
+	_expect(world.storage_slots.size() == 12, "world builds twelve interactive storage slots")
 	_expect(_count_rendered_instances(world) > 1500, "hall contains detailed rendered geometry")
 	_expect(_count_nodes_of_type(world, "CollisionShape3D") > 20, "hall contains gameplay collision")
 	var empty_slot: GreenhousePlantActor
@@ -241,6 +244,20 @@ func _test_world_and_plants() -> void:
 	var healthy_color := Color("#4e9b61")
 	var stressed_color := GreenhousePlantActor.health_tinted_color(healthy_color, 0.10)
 	_expect(not stressed_color.is_equal_approx(healthy_color), "poor health computes visible foliage discoloration")
+	var shelf_slot: GreenhouseStorageSlot = world.storage_slots[0]
+	var shelf_item := shelf_slot.stored_item_id
+	var combined_stock_before := state.item_count(shelf_item) + 1
+	_expect(shelf_slot.get_interaction_prompt("").begins_with("E  Take"), "occupied shelf slot advertises retrieval")
+	_expect(shelf_slot.interact(null, ""), "occupied shelf slot releases its item")
+	_expect(shelf_slot.stored_item_id.is_empty(), "retrieved shelf slot becomes empty")
+	_expect(state.item_count(shelf_item) == combined_stock_before, "retrieval transfers exactly one item into inventory")
+	_expect(shelf_slot.interact(null, shelf_item), "empty shelf slot accepts selected inventory item")
+	_expect(shelf_slot.stored_item_id == shelf_item, "stored shelf item keeps its identity")
+	_expect(state.item_count(shelf_item) + 1 == combined_stock_before, "storage transfer neither duplicates nor loses stock")
+	var storage_before := world.storage_snapshots()
+	world.reset_storage()
+	world.restore_storage_snapshots(storage_before)
+	_expect(world.storage_snapshots() == storage_before, "storage layout survives snapshot restore")
 	if empty_slot:
 		empty_slot.mutation_chance = 0.0
 		state.add_item("soil:moist")

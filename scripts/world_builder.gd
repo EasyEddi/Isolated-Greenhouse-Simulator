@@ -13,6 +13,7 @@ const WALL_THICKNESS := 0.22
 
 var game_state: GreenhouseGameState
 var plant_actors: Array[GreenhousePlantActor] = []
+var storage_slots: Array[GreenhouseStorageSlot] = []
 var terminal_interactable: GreenhouseInteractable
 var faucet_interactable: GreenhouseInteractable
 var plants_root: Node3D
@@ -258,9 +259,18 @@ func _build_storage_department() -> void:
 	for index in range(3):
 		var x := -4.8 + index * 1.8
 		_add_prop(area, "StorageShelf_%d" % index, "storage_shelf", Vector3(x, 0.02, 8.45), PI, Vector3(1.82, 1.8, 0.72), Vector3(0, 0.9, 0))
-	for index in range(4):
-		_add_prop(area, "SoilBag_%d" % index, "soil_bag", Vector3(-4.9 + index * 0.46, 0.11, 7.95), PI * 0.5, Vector3.ZERO)
-		_add_prop(area, "FeedBag_%d" % index, "fertilizer_bag", Vector3(-2.8 + index * 0.46, 0.11, 7.95), PI * 0.5, Vector3.ZERO)
+	var starter_stock := {0: "soil:aroid", 1: "soil:moist", 6: "feed:foliage", 7: "feed:bloom"}
+	for row in range(2):
+		for column in range(6):
+			var slot_index := row * 6 + column
+			var slot := GreenhouseStorageSlot.new()
+			slot.name = "StorageSlot_%02d" % slot_index
+			slot.position = Vector3(-5.45 + column * 0.90, 0.36 + row * 0.66, 8.02)
+			var initial_item := str(starter_stock.get(slot_index, ""))
+			var pad_color := Color("#77624d") if row == 0 else Color("#3f6554")
+			area.add_child(slot)
+			slot.configure_slot("storage_%02d" % slot_index, game_state, initial_item, pad_color)
+			storage_slots.append(slot)
 	_add_box(area, "StorageLane", Vector3(-3.0, 0.025, 6.55), Vector3(6.4, 0.035, 1.0), materials.delivery, false)
 
 
@@ -510,6 +520,28 @@ func plant_snapshots() -> Array:
 	for plant in plant_actors:
 		snapshots.append(plant.snapshot())
 	return snapshots
+
+
+func storage_snapshots() -> Array:
+	var snapshots: Array = []
+	for slot in storage_slots:
+		snapshots.append(slot.snapshot())
+	return snapshots
+
+
+func restore_storage_snapshots(snapshots: Array) -> void:
+	var by_slot: Dictionary = {}
+	for snapshot in snapshots:
+		if snapshot is Dictionary:
+			by_slot[str(snapshot.get("slot_id", ""))] = str(snapshot.get("item_id", ""))
+	for slot in storage_slots:
+		slot.set_stored_item(str(by_slot.get(slot.slot_id, "")))
+
+
+func reset_storage() -> void:
+	var starter_stock := {0: "soil:aroid", 1: "soil:moist", 6: "feed:foliage", 7: "feed:bloom"}
+	for index in range(storage_slots.size()):
+		storage_slots[index].set_stored_item(str(starter_stock.get(index, "")))
 
 
 func restore_plant_snapshots(snapshots: Array) -> void:
