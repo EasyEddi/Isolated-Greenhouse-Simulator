@@ -16,12 +16,19 @@ func _initialize() -> void:
 
 func _run() -> void:
 	_backup_save()
+	var menu_guard_payload := '{"version":1,"currency":321,"inventory":{"watering_can":1}}'
+	var menu_guard_file := FileAccess.open(GreenhouseGameState.SAVE_PATH, FileAccess.WRITE)
+	menu_guard_file.store_string(menu_guard_payload)
+	menu_guard_file.close()
 	var scene := load("res://scenes/main.tscn") as PackedScene
 	var game = scene.instantiate()
 	root.add_child(game)
 	await process_frame
 	await process_frame
 	_expect(game.get_tree().paused, "start menu pauses the simulation")
+	var menu_save_before := FileAccess.get_file_as_bytes(GreenhouseGameState.SAVE_PATH)
+	game._notification(Node.NOTIFICATION_WM_CLOSE_REQUEST)
+	_expect(FileAccess.get_file_as_bytes(GreenhouseGameState.SAVE_PATH) == menu_save_before, "closing from the start menu cannot overwrite an existing save")
 	var start_session_seconds: float = game.game_state.session_seconds
 	await create_timer(0.15, true).timeout
 	_expect(is_equal_approx(game.game_state.session_seconds, start_session_seconds), "world time does not advance behind the start menu")
@@ -72,6 +79,25 @@ func _test_terminal_camera(game) -> void:
 		await game._close_terminal()
 		_expect(game.player.global_position.distance_to(start) < 0.002, "terminal exit restores exact position x=%.2f" % start.x)
 		_expect(game.player.gameplay_enabled, "movement unlocks after terminal exit")
+
+	var interrupted_start := Vector3(-7.72, 0.05, 6.70)
+	game.player.global_position = interrupted_start
+	game.player.rotation.y = -0.25
+	game.player.look_pitch = 0.08
+	game.player.camera_pivot.rotation.x = 0.08
+	game._open_terminal()
+	await process_frame
+	_expect(game.terminal_transitioning, "terminal entry begins a smooth camera transition")
+	game._close_terminal()
+	_expect(game.terminal_close_pending, "exit input during terminal entry is buffered")
+	var interrupt_deadline := Time.get_ticks_msec() + 2600
+	while (game.terminal_active or game.terminal_transitioning) and Time.get_ticks_msec() < interrupt_deadline:
+		await process_frame
+	_expect(not game.terminal_active and not game.terminal_ui.visible, "buffered terminal exit closes the interface")
+	var interrupted_planar_distance := Vector2(game.player.global_position.x, game.player.global_position.z).distance_to(Vector2(interrupted_start.x, interrupted_start.z))
+	var interrupted_height_delta := absf(game.player.global_position.y - interrupted_start.y)
+	_expect(interrupted_planar_distance < 0.002 and interrupted_height_delta < 0.02, "buffered terminal exit restores the approach position")
+	_expect(game.player.gameplay_enabled, "buffered terminal exit restores movement")
 
 
 func _test_interaction_focus(game) -> void:
@@ -213,7 +239,11 @@ func _test_full_save_restore(game) -> void:
 	var inventory_before: int = int(game.game_state.item_count(saved_item))
 	_expect(saved_slot.interact(game.player, ""), "save test retrieves a stored supply")
 	game.world.plant_actors[0].growth = 0.4242
-	game.game_state.currency = 137
+	game.game_state.currency = 145
+	game.game_state.cart.clear()
+	_expect(game.game_state.add_to_cart("soil:moist"), "save test queues delivery stock")
+	_expect(game.game_state.checkout_cart(), "save test starts a pending drone delivery")
+	var pending_order_id := str(game.game_state.pending_orders[0].id)
 	_expect(game.game_state.save_game(game.world.plant_snapshots(), game.world.storage_snapshots()), "full game save writes plant and shelf state")
 
 	var scene := load("res://scenes/main.tscn") as PackedScene
@@ -227,6 +257,15 @@ func _test_full_save_restore(game) -> void:
 	_expect(absf(restored_game.world.plant_actors[0].growth - 0.4242) < 0.002, "full load restores continuous plant growth")
 	_expect(restored_game.world.storage_slots[6].stored_item_id.is_empty(), "full load preserves an emptied shelf slot")
 	_expect(restored_game.game_state.item_count(saved_item) == inventory_before + 1, "full load preserves the retrieved shelf item")
+	_expect(restored_game.game_state.pending_orders.size() == 1, "full load restores a pending delivery")
+	_expect(str(restored_game.drone.active_order.get("id", "")) == pending_order_id, "restored drone resumes the pending order")
+	var moist_mix_before: int = restored_game.game_state.item_count("soil:moist")
+	restored_game.drone.force_complete_active_delivery()
+	_expect(is_instance_valid(restored_game.drone.delivery_crate), "restored drone lands its physical crate")
+	if is_instance_valid(restored_game.drone.delivery_crate):
+		_expect(restored_game.drone.delivery_crate.interact(restored_game.player, ""), "restored delivery can be collected")
+	_expect(restored_game.game_state.item_count("soil:moist") == moist_mix_before + 1, "restored delivery grants its saved contents")
+	_expect(restored_game.game_state.pending_orders.is_empty(), "collecting the restored delivery clears pending state")
 	restored_game.audio_manager.shutdown()
 	await create_timer(0.20, true).timeout
 	restored_game.queue_free()

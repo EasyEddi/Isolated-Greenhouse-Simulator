@@ -17,6 +17,8 @@ var autosave_timer: Timer
 
 var terminal_active := false
 var terminal_transitioning := false
+var terminal_close_pending := false
+var shift_started := false
 var return_position := Vector3.ZERO
 var return_yaw := 0.0
 var return_pitch := 0.0
@@ -39,7 +41,7 @@ func _ready() -> void:
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_WM_CLOSE_REQUEST and game_state and world:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST and shift_started and game_state and world:
 		game_state.save_game(world.plant_snapshots(), world.storage_snapshots())
 
 
@@ -126,6 +128,7 @@ func _begin_shift(load_existing: bool) -> void:
 		game_state.new_game()
 		world.reset_plants()
 		world.reset_storage()
+	shift_started = true
 	hud.close_start_menu()
 	hud.show_message("Shift started. Take your time.", "neutral")
 
@@ -135,6 +138,7 @@ func _open_terminal() -> void:
 		return
 	terminal_transitioning = true
 	terminal_active = true
+	terminal_close_pending = false
 	hud.close_overlays()
 	hud.hide_plant()
 	return_position = player.global_position
@@ -152,12 +156,19 @@ func _open_terminal() -> void:
 	await tween.finished
 	player.camera.position.y = 0.0
 	terminal_transitioning = false
+	if terminal_close_pending:
+		terminal_close_pending = false
+		_close_terminal()
+		return
 	terminal_ui.open()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
 func _close_terminal() -> void:
-	if not terminal_active or terminal_transitioning:
+	if not terminal_active:
+		return
+	if terminal_transitioning:
+		terminal_close_pending = true
 		return
 	terminal_transitioning = true
 	terminal_ui.close()
@@ -269,6 +280,7 @@ func _run_smoke_test() -> void:
 	game_state.cart.clear()
 	game_state.add_to_cart("starter:mint")
 	game_state.add_to_cart("soil:moist")
+	game_state.add_to_cart("soil:moist")
 	game_state.add_to_cart("feed:herb")
 	_expect(game_state.checkout_cart(), "shop checkout succeeds", failures)
 	drone.force_complete_active_delivery()
@@ -299,6 +311,19 @@ func _run_smoke_test() -> void:
 		empty_slot._process(1.0)
 		_expect(empty_slot.offshoot_ready, "mature plant produces an offshoot", failures)
 		_expect(empty_slot.interact(player, "secateurs"), "offshoot can be harvested", failures)
+		empty_slot.offshoot_ready = true
+		empty_slot.offshoot_progress = 1.0
+		_expect(empty_slot.interact(player, "secateurs"), "a second cared-for offshoot can be harvested", failures)
+		var propagation_slot: GreenhousePlantActor
+		for candidate in world.plant_actors:
+			if candidate.species_id.is_empty() and candidate != empty_slot:
+				propagation_slot = candidate
+				break
+		_expect(propagation_slot != null, "a second pot is available for propagation", failures)
+		if propagation_slot:
+			_expect(propagation_slot.interact(player, "soil:moist"), "propagation pot accepts soil", failures)
+			_expect(propagation_slot.interact(player, "trowel"), "propagation soil can be prepared", failures)
+			_expect(propagation_slot.interact(player, "offshoot:mint"), "harvested offshoot can become a new plant", failures)
 		_expect(game_state.sell_offshoot("offshoot:mint"), "offshoot can be sold", failures)
 
 	_expect(game_state.save_game(world.plant_snapshots(), world.storage_snapshots()), "save game can be written", failures)
@@ -344,6 +369,7 @@ func _run_capture_mode(args: Array) -> void:
 		"mutation": [Vector3(8.25, 0.05, 2.88), PI, -0.31],
 		"stress": [Vector3(2.85, 0.05, 2.88), PI, -0.29],
 		"soil_pot": [Vector3(1.05, 0.05, 3.12), 0.0, -0.29],
+		"propagation": [Vector3(1.05, 0.05, 3.12), 0.0, -0.29],
 		"offshoot": [Vector3(2.85, 0.05, 2.88), PI, -0.29],
 		"storage": [Vector3(-3.0, 0.05, 5.25), PI, -0.08],
 		"greenhouse_inside": [Vector3(7.0, 0.05, -4.92), 0.0, -0.22],
@@ -415,6 +441,17 @@ func _run_capture_mode(args: Array) -> void:
 			if plant.species_id.is_empty():
 				game_state.add_item("soil:loam")
 				plant.interact(player, "soil:loam")
+				hud.show_plant(plant)
+				break
+	elif capture_view == "propagation":
+		player.held_root.visible = false
+		for plant in world.plant_actors:
+			if plant.species_id.is_empty():
+				game_state.add_item("soil:aroid")
+				game_state.add_item("offshoot:monstera_deliciosa#variegated")
+				plant.interact(player, "soil:aroid")
+				plant.interact(player, "trowel")
+				plant.interact(player, "offshoot:monstera_deliciosa#variegated")
 				hud.show_plant(plant)
 				break
 	elif capture_view == "offshoot":

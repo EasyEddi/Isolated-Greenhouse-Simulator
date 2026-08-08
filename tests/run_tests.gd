@@ -337,14 +337,44 @@ func _test_world_and_plants() -> void:
 		_expect(empty_slot.offshoot_marker.visible, "ready offshoot has a visible daughter plant")
 		_expect(empty_slot.interact(null, "secateurs"), "secateurs harvest ready offshoot")
 		_expect(not empty_slot.offshoot_marker.visible, "daughter plant hides after harvest")
+		state.add_item("offshoot:mint")
+		var propagation_slot: GreenhousePlantActor
+		for candidate in world.plant_actors:
+			if candidate.species_id.is_empty() and candidate != empty_slot:
+				propagation_slot = candidate
+				break
+		_expect(propagation_slot != null, "world retains a pot for offshoot propagation")
+		if propagation_slot:
+			state.add_item("soil:moist")
+			_expect(propagation_slot.interact(null, "soil:moist"), "propagation pot accepts species soil")
+			_expect(propagation_slot.interact(null, "trowel"), "propagation soil can be prepared")
+			_expect(propagation_slot.get_interaction_prompt("offshoot:mint").begins_with("E  Plant"), "prepared pot advertises offshoot planting")
+			_expect(propagation_slot.interact(null, "offshoot:mint"), "harvested offshoot can be replanted")
+			_expect(propagation_slot.species_id == "mint" and propagation_slot.growth >= 0.14, "replanted offshoot starts as an established young plant")
 		var leaves_before_sale := state.currency
 		_expect(state.sell_offshoot("offshoot:mint"), "harvested offshoot sells")
 		_expect(state.currency > leaves_before_sale, "sale awards leaves")
+	var clone_slot: GreenhousePlantActor
+	for candidate in world.plant_actors:
+		if candidate.species_id.is_empty():
+			clone_slot = candidate
+			break
+	if clone_slot:
+		state.add_item("soil:aroid")
+		state.add_item("offshoot:monstera_deliciosa#variegated")
+		clone_slot.interact(null, "soil:aroid")
+		clone_slot.interact(null, "trowel")
+		_expect(clone_slot.interact(null, "offshoot:monstera_deliciosa#variegated"), "variegated offshoot can be propagated")
+		_expect(clone_slot.mutation_id == "variegated", "propagated offshoot inherits its mutation")
 	state.add_item("offshoot:monstera_deliciosa#variegated")
 	var premium_before := state.currency
 	_expect(state.sell_offshoot("offshoot:monstera_deliciosa#variegated"), "variegated offshoot sells")
 	_expect(state.currency - premium_before > int(PlantCatalog.species("monstera_deliciosa").offshoot_value), "mutation sale awards a premium")
 	var snapshots := world.plant_snapshots()
+	var saved_mutations := 0
+	for snapshot in snapshots:
+		if not str(snapshot.get("mutation_id", "")).is_empty():
+			saved_mutations += 1
 	_expect(snapshots.size() == world.plant_actors.size(), "world serializes every station")
 	world.restore_plant_snapshots(snapshots)
 	_expect(world.plant_snapshots().size() == snapshots.size(), "world restores station snapshots")
@@ -352,7 +382,7 @@ func _test_world_and_plants() -> void:
 	for snapshot in world.plant_snapshots():
 		if not str(snapshot.get("mutation_id", "")).is_empty():
 			restored_mutations += 1
-	_expect(restored_mutations == mutation_count, "mutation metadata survives world snapshot restore")
+	_expect(restored_mutations == saved_mutations, "mutation metadata survives world snapshot restore")
 	world.queue_free()
 	state.queue_free()
 	await process_frame

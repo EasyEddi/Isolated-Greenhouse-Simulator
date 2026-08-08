@@ -32,7 +32,7 @@ The zones use furniture, lighting, floor wear, and sight lines rather than color
 6. Plant, water, and fertilize according to the species profile.
 7. Observe continuous growth and react to changing moisture, nutrition, and health.
 8. Harvest a healthy offshoot with secateurs once the plant is mature.
-9. Sell the offshoot through the terminal's collection order.
+9. Replant the offshoot to expand the collection, or sell it through the terminal's collection order.
 10. Reinvest leaf currency into new species and nursery capacity.
 
 ## Plant Roster
@@ -64,6 +64,7 @@ The first release targets twelve recognizable species across different care prof
 - Overwatering and drought both matter, but neither instantly kills a plant. Visible stress gives the player time to recover.
 - Stress progressively droops and discolors foliage, while recovery restores the species' healthy color.
 - Healthy mature plants build offshoot progress. Secateurs convert a ready offshoot into a sellable inventory item.
+- Harvested offshoots can be replanted as established young plants; cloned mutations are inherited.
 - Newly planted starters have a `5.5%` chance to develop a variegation mutation. Pale leaf sectors persist through saves, pass into harvested stock, and raise the offshoot value by `1.65x`.
 
 ## Art Direction

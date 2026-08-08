@@ -3,19 +3,21 @@
 ## Automated Coverage
 
 - Headless editor import: pass, no stderr output.
-- Simulation and state suite: `358/358` checks passing.
-- Scene integration suite: `67/67` checks passing, no stderr output.
-- Complete purchase, drone delivery, pot preparation, care, harvest, sale, and save smoke path: pass.
+- Simulation and state suite: `366/366` checks passing.
+- Scene integration suite: `81/81` checks passing, no stderr output.
+- Complete purchase, drone delivery, pot preparation, care, two offshoot harvests, propagation, sale, and save smoke path: pass.
 - Consecutive drone orders: FIFO delivery order verified with two physical crates.
+- Interrupted delivery recovery: a pending order survives a full scene restart, resumes flight, lands, and clears only after collection.
 - Full reload: leaf balance, inventory, pending delivery data, continuous plant growth, mutations, and all twelve shelf slots persist.
 - Save recovery: a deliberately corrupted primary JSON file falls back to the previous valid backup.
-- Input modes: fixed terminal camera from three approach positions, `F` entry, ignored `E`, `Escape` exit, pause freeze, and movement restoration verified.
+- Save protection: closing the application from the start menu leaves the existing greenhouse untouched.
+- Input modes: fixed terminal camera from three approach positions, buffered exit during camera travel, `F` entry, ignored `E`, `Escape` exit, pause freeze, and movement restoration verified.
 
 ## Visual Review
 
 - `1920x1080` and `1280x720` captures inspected for blank output, clipping, overlap, and readable controls.
 - Twelve species use distinct modeled silhouettes; no plant billboards are used.
-- Growth emergence, watering stream, variegation, stressed foliage, prepared soil, and ready offshoot visuals were individually rendered and inspected.
+- Growth emergence, watering stream, inherited variegation, propagated young plants, stressed foliage, prepared soil, and ready offshoot visuals were individually rendered and inspected.
 - Storage rows keep soil on brown lower pads and fertilizer on green upper pads; stored bags lie on individual slots.
 
 ## Performance

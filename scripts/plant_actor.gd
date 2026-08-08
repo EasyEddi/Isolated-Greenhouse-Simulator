@@ -31,6 +31,7 @@ var soil_material: StandardMaterial3D
 var offshoot_marker: Node3D
 var growth_parts: Array[Dictionary] = []
 var health_materials: Array[Dictionary] = []
+var mutation_leaf_patch_applied := false
 var _visual_accumulator: float = 0.0
 var _message_cooldown: float = 0.0
 
@@ -95,9 +96,9 @@ func get_interaction_prompt(selected_item: String = "") -> String:
 			return "Equip a soil mix"
 		if not soil_prepared:
 			return "E  Mix soil" if selected_item == "trowel" else "Equip the trowel"
-		if selected_item.begins_with("starter:"):
-			return "E  Plant %s" % PlantCatalog.display_name(selected_item).trim_suffix(" starter")
-		return "Equip a plant starter"
+		if selected_item.begins_with("starter:") or selected_item.begins_with("offshoot:"):
+			return "E  Plant %s" % PlantCatalog.display_name(selected_item)
+		return "Equip a starter or offshoot"
 	if selected_item == "watering_can":
 		return "Hold E  Water %s" % PlantCatalog.species(species_id).name
 	if selected_item.begins_with("feed:"):
@@ -156,22 +157,27 @@ func _interact_empty(selected_item: String) -> bool:
 		game_state.message_requested.emit("Soil is loose and ready", "good")
 		_update_visuals(true)
 		return true
-	if soil_prepared and selected_item.begins_with("starter:"):
-		var new_species := selected_item.trim_prefix("starter:")
+	if soil_prepared and (selected_item.begins_with("starter:") or selected_item.begins_with("offshoot:")):
+		var item_data := PlantCatalog.item(selected_item)
+		var new_species := str(item_data.get("species", ""))
+		var from_offshoot := str(item_data.get("kind", "")) == "offshoot"
 		if PlantCatalog.species(new_species).is_empty() or not game_state.remove_item(selected_item):
 			return false
 		species_id = new_species
-		mutation_id = "variegated" if randf() < mutation_chance else ""
+		mutation_id = str(item_data.get("mutation", "")) if from_offshoot else ("variegated" if randf() < mutation_chance else "")
 		moisture = 0.24
 		nutrition = 0.10
 		health = 0.86
-		growth = 0.04
+		growth = 0.14 if from_offshoot else 0.04
 		offshoot_progress = 0.0
 		offshoot_ready = false
 		_load_plant_visual()
 		game_state.advance_objective("plant")
 		if mutation_id.is_empty():
-			game_state.message_requested.emit("%s planted" % PlantCatalog.species(species_id).name, "good")
+			var source_label := "offshoot" if from_offshoot else "starter"
+			game_state.message_requested.emit("%s %s planted" % [PlantCatalog.species(species_id).name, source_label], "good")
+		elif from_offshoot:
+			game_state.message_requested.emit("Variegated traits carried into the new plant", "good")
 		else:
 			game_state.message_requested.emit("A rare variegated shoot has emerged", "good")
 		planted.emit(self)
@@ -285,6 +291,7 @@ func _load_plant_visual() -> void:
 	plant_visual.name = "Species_%s" % species_id
 	visual_root.add_child(plant_visual)
 	_cache_growth_parts(plant_visual)
+	mutation_leaf_patch_applied = false
 	_apply_mutation_visuals(plant_visual)
 	_cache_health_materials(plant_visual)
 
@@ -301,10 +308,14 @@ func _apply_mutation_visuals(node: Node) -> void:
 			var base_color: Color = standard_material.albedo_color
 			var looks_green := base_color.g > base_color.r * 1.04 and base_color.g > base_color.b * 1.04
 			var patch_hash := posmod((slot_id + node.name + str(surface)).hash(), 100)
-			if looks_green and patch_hash < 58:
+			var is_leaf_surface := node.name.to_lower().begins_with("leaf_")
+			var force_first_leaf := is_leaf_surface and not mutation_leaf_patch_applied
+			if looks_green and (patch_hash < 58 or force_first_leaf):
 				var mutation_material := standard_material.duplicate() as StandardMaterial3D
-				mutation_material.albedo_color = base_color.lerp(Color("#e2e9b5"), 0.68)
+				mutation_material.albedo_color = base_color.lerp(Color("#f1e9be"), 0.88)
 				node.set_surface_override_material(surface, mutation_material)
+				if is_leaf_surface:
+					mutation_leaf_patch_applied = true
 	for child in node.get_children():
 		_apply_mutation_visuals(child)
 
