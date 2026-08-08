@@ -25,7 +25,7 @@ The zones use furniture, lighting, floor wear, and sight lines rather than color
 ## Core Session Loop
 
 1. Inspect current plants and the objective board.
-2. Use the office terminal to order a starter, the matching soil blend, fertilizer, or equipment.
+2. Use the office terminal to order a starter, the matching soil blend, or fertilizer; retrieve reusable equipment from the physical tool rack.
 3. Watch the delivery drone enter the hall and place a crate on the delivery pad.
 4. Collect the crate into the inventory and organize spare stock on individual storage shelf slots.
 5. Retrieve the required supply and prepare a pot at a nursery bench.
@@ -76,4 +76,4 @@ The visual direction is grounded low-poly realism: recognizable proportions, mod
 
 ## Scope Boundary
 
-The first standalone release deliberately excludes customers, employees, multiplayer, complex building placement, dozens of decorative unlocks, and a large open world. These systems would dilute the plant-care loop within the current production window.
+The first standalone release deliberately excludes customers, employees, multiplayer, complex building placement, dozens of decorative unlocks, and a large open world. Whole-plant sales are also deferred; the current economy is deliberately centered on propagating and selling healthy offshoots. These systems would dilute the plant-care loop within the current production window.

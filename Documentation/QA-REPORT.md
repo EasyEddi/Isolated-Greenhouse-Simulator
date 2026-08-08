@@ -6,6 +6,7 @@
 - Simulation and state suite: `516/516` checks passing.
 - Scene integration suite: `88/88` checks passing, no stderr output.
 - Complete purchase, drone delivery, pot preparation, care, two offshoot harvests, propagation, sale, and save smoke path: pass.
+- Guided-shift completion: the complete smoke path advances every objective and reaches open-ended nursery play.
 - Consecutive drone orders: FIFO delivery order verified with two physical crates.
 - Interrupted delivery recovery: a pending order survives a full scene restart, resumes flight, lands, and clears only after collection.
 - Full reload: leaf balance, inventory, pending delivery data, continuous plant growth, mutations, and all twelve shelf slots persist.
@@ -33,6 +34,13 @@
 
 - GPU benchmark at `1920x1080`: `190.5 FPS` average, `8.477 ms` p95 frame time, `2,664` peak draw calls on an NVIDIA GeForce RTX 4060.
 - The renderer remains Godot GL Compatibility for wider Windows support.
+
+## Packaged Candidate
+
+- Local single-file Windows export: `110,557,680` bytes with product name `Isolated Greenhouse`, version `0.1.0.0`, EasyEddi company metadata, and the embedded leaf icon.
+- The local packaged executable completes its own headless gameplay smoke path with exit code `0`.
+- A clean Linux CI artifact was downloaded through the GitHub API, matched GitHub's reported byte size and SHA-256 digest, and completed the same Windows gameplay smoke path.
+- The packaged executable rendered and saved the full supplies-terminal view through the NVIDIA GPU path, confirming that release resources and UI are present outside the editor.
 
 ## Release Gate
 
