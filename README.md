@@ -29,6 +29,7 @@ The local packaged build is produced at `build/IsolatedGreenhouse_0.1.0.exe`.
 Core controls:
 
 - `WASD`: Move
+- `Shift`: Sprint
 - Mouse: Look
 - `E`: Interact / use selected item
 - `F`: Use or leave the shop terminal

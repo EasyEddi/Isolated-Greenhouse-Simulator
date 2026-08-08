@@ -44,6 +44,9 @@ func _test_catalog() -> void:
 	_expect(care_accents.size() == 8, "all care profiles have distinct visual accents")
 	_expect(GreenhouseHUD.format_shift_duration(125.9) == "02:05", "shift duration formats minute sessions")
 	_expect(GreenhouseHUD.format_shift_duration(3723.0) == "1:02:03", "shift duration formats long sessions")
+	_expect(GreenhouseHUD.care_match_text("Aroid Mix", "Aroid Mix") == "Aroid Mix / matched", "care readout collapses matching profiles")
+	_expect(GreenhouseHUD.care_match_text("None applied", "Foliage Feed") == "None / needs Foliage Feed", "care readout identifies missing feed")
+	_expect(GreenhouseHUD.care_match_text("Bloom Feed", "Foliage Feed") == "Bloom Feed / needs Foliage Feed", "care readout identifies mismatched feed")
 	var seen_names: Dictionary = {}
 	for species_id in PlantCatalog.species_ids():
 		var data := PlantCatalog.species(species_id)
@@ -62,6 +65,11 @@ func _test_catalog() -> void:
 		var mutation_item := PlantCatalog.item("offshoot:%s#variegated" % species_id)
 		_expect(mutation_item.kind == "offshoot" and int(mutation_item.price) > int(data.offshoot_value), "%s mutation offshoot has a premium" % species_id)
 	_expect(PlantCatalog.item("offshoot:mint#invented").is_empty(), "unknown mutation ids cannot become inventory items")
+	_expect(GreenhousePlantActor.moisture_status(0.0, 0.4, 0.7) == "DROUGHT", "plant readout identifies drought")
+	_expect(GreenhousePlantActor.moisture_status(0.3, 0.4, 0.7) == "DRY", "plant readout identifies dry soil")
+	_expect(GreenhousePlantActor.moisture_status(0.55, 0.4, 0.7) == "IDEAL", "plant readout identifies ideal moisture")
+	_expect(GreenhousePlantActor.moisture_status(0.85, 0.4, 0.7) == "WET", "plant readout identifies wet soil")
+	_expect(GreenhousePlantActor.moisture_status(1.10, 0.4, 0.7) == "WATERLOGGED", "plant readout identifies waterlogging")
 
 
 func _test_asset_manifest() -> void:
@@ -110,6 +118,8 @@ func _test_economy_and_save() -> void:
 	state.new_game()
 	_expect(state.currency == 85, "new shift starts with 85 leaves")
 	_expect(state.item_count("watering_can") == 1, "watering can starts on the rack")
+	state.add_item("unknown:item", 4)
+	_expect(state.item_count("unknown:item") == 0, "runtime inventory rejects unknown items")
 	var original_hotbar := state.hotbar.duplicate()
 	state.equip_item("watering_can")
 	_expect(state.selected_hotbar_index == 0 and state.hotbar == original_hotbar, "equipping an existing tool selects without duplicating it")

@@ -594,9 +594,22 @@ func _refresh_plant_panel(plant: GreenhousePlantActor) -> void:
 		for bar in plant_bars.values():
 			bar.value = 0
 		return
-	plant_detail.text = "%s\nSoil: %s / prefers %s\nFeed: %s" % [data.group, data.soil, data.preferred_soil, data.feed]
+	plant_detail.text = "%s / WATER %s\nSoil: %s\nFeed: %s" % [
+		data.group,
+		data.water_status,
+		care_match_text(str(data.soil), str(data.preferred_soil)),
+		care_match_text(str(data.feed), str(data.preferred_feed)),
+	]
 	for key in plant_bars:
 		plant_bars[key].value = clampf(float(data.get(key, 0.0)), 0.0, 1.0) * 100.0
+
+
+static func care_match_text(current: String, preferred: String) -> String:
+	if current == preferred:
+		return "%s / matched" % current
+	if current == "None applied":
+		return "None / needs %s" % preferred
+	return "%s / needs %s" % [current, preferred]
 
 
 func _show_inventory_tab() -> void:

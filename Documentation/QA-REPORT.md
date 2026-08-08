@@ -3,7 +3,7 @@
 ## Automated Coverage
 
 - Headless editor import: pass, no stderr output.
-- Simulation and state suite: `387/387` checks passing.
+- Simulation and state suite: `396/396` checks passing.
 - Scene integration suite: `88/88` checks passing, no stderr output.
 - Complete purchase, drone delivery, pot preparation, care, two offshoot harvests, propagation, sale, and save smoke path: pass.
 - Consecutive drone orders: FIFO delivery order verified with two physical crates.
@@ -21,6 +21,7 @@
 - Compact 4:3 and ultrawide renders keep the terminal checkout, inventory, currency, objectives, and hotbar inside their intended bounds.
 - Twelve species use distinct modeled silhouettes; no plant billboards are used.
 - Growth emergence, watering stream, inherited variegation, propagated young plants, stressed foliage, prepared soil, and ready offshoot visuals were individually rendered and inspected.
+- Live care readouts distinguish drought, dry, ideal, wet, and waterlogged soil while showing whether the applied soil and feed match the species profile.
 - All eight soil and feed profiles use distinct, consistent icon accents across the terminal, inventory, and hotbar.
 - Delivered starters and offshoots retain species-specific silhouettes; variegated stock keeps its mutation palette.
 - The pause panel displays saved session time, harvest count, and leaf sales without overlapping controls at compact or standard resolutions.

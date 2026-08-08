@@ -104,7 +104,7 @@ func item_count(item_id: String) -> int:
 
 
 func add_item(item_id: String, amount: int = 1) -> void:
-	if amount <= 0:
+	if amount <= 0 or PlantCatalog.item(item_id).is_empty():
 		return
 	inventory[item_id] = item_count(item_id) + amount
 	_refresh_dynamic_hotbar(item_id)

@@ -469,7 +469,21 @@ func plant_readout() -> Dictionary:
 		"nutrition": nutrition,
 		"soil": PlantCatalog.SOIL_NAMES.get(soil_profile, "No soil"),
 		"preferred_soil": PlantCatalog.SOIL_NAMES.get(str(data.soil), str(data.soil)),
-		"feed": PlantCatalog.FEED_NAMES.get(str(data.feed), str(data.feed)),
+		"feed": PlantCatalog.FEED_NAMES.get(feed_profile, "None applied"),
+		"preferred_feed": PlantCatalog.FEED_NAMES.get(str(data.feed), str(data.feed)),
+		"water_status": moisture_status(moisture, float(data.optimal_low), float(data.optimal_high)),
 		"offshoot": offshoot_progress,
 		"offshoot_ready": offshoot_ready,
 	}
+
+
+static func moisture_status(value: float, optimal_low: float, optimal_high: float) -> String:
+	if value < 0.03:
+		return "DROUGHT"
+	if value < optimal_low:
+		return "DRY"
+	if value <= optimal_high:
+		return "IDEAL"
+	if value <= 1.04:
+		return "WET"
+	return "WATERLOGGED"
