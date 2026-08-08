@@ -48,6 +48,7 @@ func _test_catalog() -> void:
 	_expect(GreenhouseHUD.care_match_text("None applied", "Foliage Feed") == "None / needs Foliage Feed", "care readout identifies missing feed")
 	_expect(GreenhouseHUD.care_match_text("Bloom Feed", "Foliage Feed") == "Bloom Feed / needs Foliage Feed", "care readout identifies mismatched feed")
 	var seen_names: Dictionary = {}
+	var seen_model_hashes: Dictionary = {}
 	for species_id in PlantCatalog.species_ids():
 		var data := PlantCatalog.species(species_id)
 		_expect(not seen_names.has(data.name), "%s has a unique display name" % species_id)
@@ -60,6 +61,9 @@ func _test_catalog() -> void:
 		_expect(float(data.growth_seconds) >= 180.0, "%s does not grow instantly" % species_id)
 		_expect(int(data.offshoot_value) > int(data.starter_price), "%s supports a profitable care loop" % species_id)
 		_expect(FileAccess.file_exists(str(data.model)), "%s model exists" % species_id)
+		var model_hash := FileAccess.get_sha256(str(data.model))
+		_expect(not model_hash.is_empty() and not seen_model_hashes.has(model_hash), "%s uses a unique plant model asset" % species_id)
+		seen_model_hashes[model_hash] = species_id
 		var packed_model = load(str(data.model))
 		_expect(packed_model is PackedScene, "%s model imports as a packed scene" % species_id)
 		if packed_model is PackedScene:

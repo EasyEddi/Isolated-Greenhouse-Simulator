@@ -3,7 +3,7 @@
 ## Automated Coverage
 
 - Headless editor import: pass, no stderr output.
-- Simulation and state suite: `565/565` checks passing.
+- Simulation and state suite: `577/577` checks passing.
 - Scene integration suite: `92/92` checks passing, no stderr output.
 - Complete purchase, drone delivery, pot preparation, care, two offshoot harvests, propagation, sale, and save smoke path: pass.
 - Guided-shift completion: the complete smoke path advances every objective and reaches open-ended nursery play.
@@ -21,7 +21,7 @@
 - `1024x768`, `1280x720`, `1920x1080`, and `3440x1440` captures inspected for blank output, clipping, overlap, and readable controls.
 - Compact 4:3 and ultrawide renders keep the terminal checkout, inventory, currency, objectives, and hotbar inside their intended bounds.
 - Sell mode hides all shop-only category and cart controls; returning to shop restores both without shifting or overlapping the terminal frame.
-- Twelve species use distinct modeled silhouettes; no plant billboards are used.
+- Twelve species use distinct modeled silhouettes and unique SHA-256-verified model assets; no plant billboards are used.
 - Growth emergence, watering stream, inherited variegation, propagated young plants, stressed foliage, prepared soil, and ready offshoot visuals were individually rendered and inspected.
 - Live care readouts distinguish drought, dry, ideal, wet, and waterlogged soil while showing whether the applied soil and feed match the species profile.
 - Matching fertilizer outperforms a mismatched feed, correct care recovers stressed plants, and mismatched fertilizer cannot drive offshoot production.
