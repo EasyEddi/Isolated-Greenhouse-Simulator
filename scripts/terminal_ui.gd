@@ -8,6 +8,7 @@ var frame: PanelContainer
 var shop_tab: Button
 var sell_tab: Button
 var category_buttons: Dictionary = {}
+var category_panel: Control
 var item_grid: GridContainer
 var cart_panel: PanelContainer
 var cart_header: Label
@@ -104,14 +105,14 @@ func _build_ui() -> void:
 	content.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	content.add_theme_constant_override("separation", 18)
 	outer.add_child(content)
-	var categories := VBoxContainer.new()
-	categories.custom_minimum_size.x = 92
-	categories.add_theme_constant_override("separation", 12)
-	content.add_child(categories)
+	category_panel = VBoxContainer.new()
+	category_panel.custom_minimum_size.x = 92
+	category_panel.add_theme_constant_override("separation", 12)
+	content.add_child(category_panel)
 	for spec in [["plants", "starter", "Plant starters"], ["supplies", "soil", "Soil and feed"], ["equipment", "equipment", "Equipment"]]:
 		var button := _icon_button(spec[1], spec[2], 76)
 		button.pressed.connect(_set_category.bind(spec[0]))
-		categories.add_child(button)
+		category_panel.add_child(button)
 		category_buttons[spec[0]] = button
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -182,6 +183,7 @@ func _refresh_all() -> void:
 func _refresh_tabs() -> void:
 	_set_button_active(shop_tab, current_mode == "shop")
 	_set_button_active(sell_tab, current_mode == "sell")
+	category_panel.visible = current_mode == "shop"
 	cart_panel.visible = current_mode == "shop"
 	for category in category_buttons:
 		_set_button_active(category_buttons[category], current_mode == "shop" and current_category == category)

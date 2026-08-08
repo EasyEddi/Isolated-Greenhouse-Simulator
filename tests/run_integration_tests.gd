@@ -114,6 +114,10 @@ func _test_interaction_focus(game) -> void:
 	while (not game.terminal_active or game.terminal_transitioning) and Time.get_ticks_msec() < open_deadline:
 		await process_frame
 	_expect(game.terminal_active and game.terminal_ui.visible, "F opens the terminal through the real input path")
+	game.terminal_ui._set_mode("sell")
+	_expect(not game.terminal_ui.category_panel.visible and not game.terminal_ui.cart_panel.visible, "sell mode hides shop-only categories and cart")
+	game.terminal_ui._set_mode("shop")
+	_expect(game.terminal_ui.category_panel.visible and game.terminal_ui.cart_panel.visible, "shop mode restores categories and cart")
 	_send_action(game.player, "interact")
 	await process_frame
 	_expect(game.terminal_active, "E is ignored while the terminal owns input")

@@ -10,11 +10,12 @@ MVP Alpha 0.1.0 is the first standalone playable release of Isolated Greenhouse.
 - Added press-and-hold watering with a visible stream, a finite watering-can reservoir, and a physical refill station.
 - Added soil preparation, fertilizer compatibility, mature offshoot production, secateur harvesting, propagation, offshoot sales, and inherited variegation mutations.
 - Added the online stock terminal with species and care categories, a cart, leaf currency, and queued physical drone deliveries.
+- Kept shop-only categories and the order cart out of the dedicated offshoot-selling view.
 - Added twelve persistent physical shelf slots for storing and retrieving tools, supplies, starters, and offshoots.
 - Added a plant journal, current objectives, plant readouts, shift records, autosave, manual save, backup recovery, and resumed pending deliveries.
 - Made live plant care readouts distinguish moisture condition, missing feed, matching profiles, and mismatched profiles.
 - Hardened saves and the economy against malformed values, unknown stock, duplicate delivery collection, and invalid cart quantities.
-- Validated the release with 516 simulation and plant-geometry checks, 88 scene and input checks, a complete gameplay smoke path, multi-aspect visual review, and a packaged-executable smoke test.
+- Validated the release with 516 simulation and plant-geometry checks, 90 scene and input checks, a complete gameplay smoke path, multi-aspect visual review, and a packaged-executable smoke test.
 
 # Contributors
 
