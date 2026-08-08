@@ -9,6 +9,7 @@ signal quit_requested
 
 var game_state: GreenhouseGameState
 var player: GreenhousePlayer
+var settings: GreenhouseSettings
 var root: Control
 var gameplay_root: Control
 var currency_panel: PanelContainer
@@ -52,10 +53,11 @@ var palette := {
 }
 
 
-func configure(state: GreenhouseGameState, controlled_player: GreenhousePlayer) -> GreenhouseHUD:
+func configure(state: GreenhouseGameState, controlled_player: GreenhousePlayer, user_settings: GreenhouseSettings) -> GreenhouseHUD:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	game_state = state
 	player = controlled_player
+	settings = user_settings
 	_build_ui()
 	game_state.state_changed.connect(_refresh_state)
 	game_state.objective_changed.connect(_set_objective)
@@ -442,9 +444,28 @@ func _build_pause() -> void:
 	sensitivity.min_value = 0.0008
 	sensitivity.max_value = 0.0045
 	sensitivity.step = 0.0001
-	sensitivity.value = player.mouse_sensitivity
-	sensitivity.value_changed.connect(func(value): player.mouse_sensitivity = float(value))
+	sensitivity.value = settings.look_sensitivity
+	sensitivity.value_changed.connect(_set_look_sensitivity)
 	column.add_child(sensitivity)
+	var volume_label := Label.new()
+	volume_label.text = "MASTER VOLUME"
+	volume_label.add_theme_font_size_override("font_size", 13)
+	volume_label.add_theme_color_override("font_color", palette.muted)
+	column.add_child(volume_label)
+	var volume := HSlider.new()
+	volume.min_value = 0.0
+	volume.max_value = 1.0
+	volume.step = 0.01
+	volume.value = settings.master_volume
+	volume.value_changed.connect(settings.set_master_volume)
+	column.add_child(volume)
+	var fullscreen_toggle := CheckButton.new()
+	fullscreen_toggle.text = "FULLSCREEN"
+	fullscreen_toggle.button_pressed = settings.fullscreen
+	fullscreen_toggle.toggled.connect(settings.set_fullscreen)
+	fullscreen_toggle.add_theme_font_size_override("font_size", 14)
+	fullscreen_toggle.add_theme_color_override("font_color", palette.text)
+	column.add_child(fullscreen_toggle)
 	var spacer := Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	column.add_child(spacer)
@@ -457,6 +478,11 @@ func _build_pause() -> void:
 	var quit := _text_button("SAVE AND QUIT")
 	quit.pressed.connect(func(): quit_requested.emit())
 	column.add_child(quit)
+
+
+func _set_look_sensitivity(value: float) -> void:
+	player.mouse_sensitivity = float(value)
+	settings.set_look_sensitivity(float(value))
 
 
 func _build_start_menu() -> void:

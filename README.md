@@ -14,7 +14,7 @@ Isolated Greenhouse is a calm first-person plant-care and greenhouse-management 
 - A fixed-camera online terminal, cart, categorized stock, leaf currency, and animated drone deliveries.
 - Press-and-hold watering, recoverable drought and overwatering stress, fertilizer compatibility, and persistent plant health.
 - Mature offshoot harvesting and sales, including rare persistent variegation with premium value.
-- Autosave, manual save, continue, inventory, plant journal, objective guidance, audio, and pause settings.
+- Autosave, manual save, continue, inventory, plant journal, objective guidance, audio, and persistent PC settings.
 
 ![The online stock terminal](Documentation/Screenshots/online-terminal.png)
 

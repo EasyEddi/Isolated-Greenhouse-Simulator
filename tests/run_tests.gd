@@ -14,6 +14,7 @@ func _run() -> void:
 	_backup_save()
 	_test_catalog()
 	_test_asset_manifest()
+	_test_settings_persistence()
 	await _test_economy_and_save()
 	await _test_world_and_plants()
 	await _test_long_term_plant_simulation()
@@ -66,6 +67,29 @@ func _test_asset_manifest() -> void:
 		_expect(FileAccess.file_exists(path), "%s sound exists" % sound_name)
 		var stream = load(path)
 		_expect(stream is AudioStream and stream.get_length() > 0.20, "%s sound imports" % sound_name)
+
+
+func _test_settings_persistence() -> void:
+	var test_path := "user://isolated_greenhouse_settings_test.cfg"
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(test_path))
+	var settings := GreenhouseSettings.new()
+	settings.config_path = test_path
+	settings.set_look_sensitivity(0.0034)
+	settings.set_master_volume(0.37)
+	settings.set_fullscreen(true)
+	var loaded := GreenhouseSettings.new()
+	loaded.config_path = test_path
+	loaded.load_and_apply()
+	_expect(is_equal_approx(loaded.look_sensitivity, 0.0034), "look sensitivity preference round-trips")
+	_expect(is_equal_approx(loaded.master_volume, 0.37), "master volume preference round-trips")
+	_expect(loaded.fullscreen, "fullscreen preference round-trips")
+	settings.free()
+	loaded.free()
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(test_path))
+	var master_bus := AudioServer.get_bus_index("Master")
+	if master_bus >= 0:
+		AudioServer.set_bus_mute(master_bus, false)
+		AudioServer.set_bus_volume_db(master_bus, 0.0)
 
 
 func _test_economy_and_save() -> void:
@@ -208,6 +232,16 @@ func _test_long_term_plant_simulation() -> void:
 	var drought_health := wrong.health
 	wrong._process(8.0)
 	_expect(wrong.health < drought_health, "sustained drought damages health")
+	correct.growth = 1.0
+	correct.health = 0.90
+	correct.moisture = 0.62
+	correct.nutrition = 0.0
+	correct.offshoot_progress = 0.25
+	correct._process(20.0)
+	_expect(is_equal_approx(correct.offshoot_progress, 0.25), "mature plant cannot produce an offshoot without nutrition")
+	correct.nutrition = 0.80
+	correct._process(20.0)
+	_expect(correct.offshoot_progress > 0.25, "mature well-fed plant advances offshoot growth")
 	correct.queue_free()
 	wrong.queue_free()
 	state.queue_free()

@@ -6,6 +6,7 @@ const TERMINAL_YAW := PI
 const TERMINAL_PITCH := -0.49
 
 var game_state: GreenhouseGameState
+var settings: GreenhouseSettings
 var world: GreenhouseWorldBuilder
 var player: GreenhousePlayer
 var drone: GreenhouseDroneController
@@ -43,6 +44,11 @@ func _notification(what: int) -> void:
 
 
 func _build_game() -> void:
+	settings = GreenhouseSettings.new()
+	settings.name = "Settings"
+	add_child(settings)
+	settings.load_and_apply()
+
 	game_state = GreenhouseGameState.new()
 	game_state.name = "GameState"
 	add_child(game_state)
@@ -55,6 +61,7 @@ func _build_game() -> void:
 	player.name = "Player"
 	add_child(player)
 	player.configure(game_state)
+	player.mouse_sensitivity = settings.look_sensitivity
 	player.position = world.player_spawn_position
 	player.rotation.y = world.player_spawn_yaw
 
@@ -76,7 +83,7 @@ func _build_game() -> void:
 	hud = GreenhouseHUD.new()
 	hud.name = "HUD"
 	add_child(hud)
-	hud.configure(game_state, player)
+	hud.configure(game_state, player, settings)
 	audio_manager = GreenhouseAudioManager.new()
 	audio_manager.name = "AudioManager"
 	add_child(audio_manager)
@@ -178,6 +185,9 @@ func _on_inventory_requested() -> void:
 func _on_pause_requested() -> void:
 	if terminal_active:
 		_close_terminal()
+		return
+	if hud.inventory_open:
+		hud.toggle_inventory()
 		return
 	hud.toggle_pause()
 

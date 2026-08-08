@@ -76,8 +76,9 @@ func _process(delta: float) -> void:
 	if growth < 1.0 and health > 0.18:
 		var growth_rate := (0.30 + care_quality * 0.70) * (0.45 + health * 0.55)
 		growth = minf(1.0, growth + scaled_delta * growth_rate / float(data.growth_seconds))
-	if growth >= 0.92 and health >= 0.68 and water_quality >= 0.48:
-		offshoot_progress = minf(1.0, offshoot_progress + scaled_delta / float(data.offshoot_seconds))
+	if growth >= 0.92 and health >= 0.68 and water_quality >= 0.48 and feed_quality >= 0.42:
+		var offshoot_rate := 0.55 + care_quality * 0.45
+		offshoot_progress = minf(1.0, offshoot_progress + scaled_delta * offshoot_rate / float(data.offshoot_seconds))
 		if offshoot_progress >= 1.0:
 			offshoot_ready = true
 	_visual_accumulator += delta

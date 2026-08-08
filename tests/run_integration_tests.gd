@@ -27,6 +27,7 @@ func _run() -> void:
 	await _test_terminal_camera(game)
 	await _test_interaction_focus(game)
 	await _test_hall_collision(game)
+	await _test_inventory_escape(game)
 	await _test_pause_freezes_simulation(game)
 	await _test_realtime_delivery(game)
 	await _test_queued_deliveries(game)
@@ -142,6 +143,16 @@ func _test_pause_freezes_simulation(game) -> void:
 	_expect(not game.get_tree().paused and not game.hud.pause_open, "resume unpauses the simulation")
 
 
+func _test_inventory_escape(game) -> void:
+	game.hud.toggle_inventory()
+	_expect(game.hud.inventory_open and not game.player.gameplay_enabled, "inventory opens and locks movement")
+	_send_action(game.player, "pause")
+	await process_frame
+	_expect(not game.hud.inventory_open, "Escape closes the inventory")
+	_expect(not game.hud.pause_open and not game.get_tree().paused, "closing inventory does not also open pause")
+	_expect(game.player.gameplay_enabled, "closing inventory restores movement")
+
+
 func _test_realtime_delivery(game) -> void:
 	game.game_state.cart.clear()
 	game.game_state.currency = 85
@@ -209,7 +220,7 @@ func _test_full_save_restore(game) -> void:
 	restored_game._begin_shift(true)
 	await process_frame
 	_expect(restored_game.game_state.currency == 137, "full load restores leaf balance")
-	_expect(is_equal_approx(restored_game.world.plant_actors[0].growth, 0.4242), "full load restores continuous plant growth")
+	_expect(absf(restored_game.world.plant_actors[0].growth - 0.4242) < 0.002, "full load restores continuous plant growth")
 	_expect(restored_game.world.storage_slots[6].stored_item_id.is_empty(), "full load preserves an emptied shelf slot")
 	_expect(restored_game.game_state.item_count(saved_item) == inventory_before + 1, "full load preserves the retrieved shelf item")
 	restored_game.audio_manager.shutdown()

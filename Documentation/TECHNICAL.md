@@ -17,6 +17,7 @@
 - `plant_actor.gd`: per-pot care simulation, visuals, growth, and harvest interaction.
 - `storage_slot.gd`: atomic shelf transfers, stored-item presentation, prompts, and stable slot snapshots.
 - `game_state.gd`: inventory, economy, objectives, deliveries, and save snapshot.
+- `settings.gd`: persistent look sensitivity, master audio, and fullscreen preferences.
 - `terminal_ui.gd`: shop, offshoot sales, cart state, and delivery feedback.
 - `drone_controller.gd`: physical delivery sequence and crate state.
 - `hud.gd`: crosshair, prompt, hotbar, inventory, plant journal, plant readout, and pause settings.
