@@ -61,7 +61,7 @@ The first release targets twelve recognizable species across different care prof
 - Growth is continuous, not an instant stage swap. New stems, leaves, and flowers emerge progressively while the plant keeps a coherent silhouette.
 - Every plant tracks moisture, nutrition, health, maturity, care streak, and offshoot progress.
 - Correct soil improves care quality, recovery, and growth. Incorrect soil remains playable but slows progress and raises stress.
-- Correct fertilizer produces steady nutrition. Incorrect fertilizer provides less nutrition and can temporarily stress the plant.
+- Correct fertilizer produces steady nutrition and supports offshoot production. Incorrect fertilizer remains usable for limited growth, but provides less effective nutrition, temporarily stresses the plant, and cannot sustain reproductive growth.
 - Each soil and feed profile keeps a distinct icon accent across ordering, inventory, and equipped-item views.
 - Watering is press-and-hold, consumes the can reservoir, and fills moisture over time.
 - Overwatering and drought both matter, but neither instantly kills a plant. Visible stress gives the player time to recover.

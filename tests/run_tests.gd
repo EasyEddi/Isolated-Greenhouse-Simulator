@@ -309,8 +309,10 @@ func _test_long_term_plant_simulation() -> void:
 	var preferred := PlantCatalog.species("monstera_deliciosa")
 	var correct := GreenhousePlantActor.new()
 	var wrong := GreenhousePlantActor.new()
+	var wrong_feed := GreenhousePlantActor.new()
 	root.add_child(correct)
 	root.add_child(wrong)
+	root.add_child(wrong_feed)
 	await process_frame
 	var baseline := {
 		"species_id": "monstera_deliciosa", "soil_profile": preferred.soil,
@@ -321,9 +323,15 @@ func _test_long_term_plant_simulation() -> void:
 	var wrong_baseline := baseline.duplicate(true)
 	wrong_baseline.soil_profile = "gritty"
 	wrong.configure("soil_wrong", state, wrong_baseline)
+	var wrong_feed_baseline := baseline.duplicate(true)
+	wrong_feed_baseline.feed_profile = "bloom"
+	wrong_feed.configure("feed_wrong", state, wrong_feed_baseline)
 	correct._process(45.0)
 	wrong._process(45.0)
+	wrong_feed._process(45.0)
 	_expect(correct.growth > wrong.growth, "matching soil grows faster than a mismatched mix")
+	_expect(correct.growth > wrong_feed.growth, "matching feed grows faster than mismatched fertilizer")
+	_expect(wrong_feed.growth > float(baseline.growth), "mismatched fertilizer still permits limited growth")
 	correct.moisture = 1.16
 	var overwatered_health := correct.health
 	correct._process(8.0)
@@ -339,11 +347,24 @@ func _test_long_term_plant_simulation() -> void:
 	correct.offshoot_progress = 0.25
 	correct._process(20.0)
 	_expect(is_equal_approx(correct.offshoot_progress, 0.25), "mature plant cannot produce an offshoot without nutrition")
+	wrong_feed.growth = 1.0
+	wrong_feed.health = 0.90
+	wrong_feed.moisture = 0.62
+	wrong_feed.nutrition = 0.80
+	wrong_feed.offshoot_progress = 0.25
+	wrong_feed._process(20.0)
+	_expect(is_equal_approx(wrong_feed.offshoot_progress, 0.25), "mismatched fertilizer cannot drive offshoot production")
 	correct.nutrition = 0.80
 	correct._process(20.0)
 	_expect(correct.offshoot_progress > 0.25, "mature well-fed plant advances offshoot growth")
+	correct.health = 0.20
+	correct.moisture = 0.62
+	correct.nutrition = 0.80
+	correct._process(20.0)
+	_expect(correct.health > 0.20, "matching care recovers a stressed plant")
 	correct.queue_free()
 	wrong.queue_free()
+	wrong_feed.queue_free()
 	state.queue_free()
 	await process_frame
 
@@ -403,6 +424,7 @@ func _test_world_and_plants() -> void:
 		_expect(empty_slot.interact(null, "trowel"), "trowel prepares soil")
 		_expect(empty_slot.interact(null, "starter:mint"), "prepared pot accepts starter")
 		_expect(not empty_slot.soil_visual.visible, "prepared soil marker hides after planting")
+		_expect(empty_slot.interact(null, "feed:herb"), "matching fertilizer can be applied")
 		var growth_before := empty_slot.growth
 		empty_slot.moisture = 0.66
 		empty_slot.nutrition = 0.70

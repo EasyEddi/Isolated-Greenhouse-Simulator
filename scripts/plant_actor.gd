@@ -62,7 +62,8 @@ func _process(delta: float) -> void:
 	moisture = maxf(-0.08, moisture - float(data.water_use) * scaled_delta)
 	nutrition = maxf(0.0, nutrition - float(data.nutrition_use) * scaled_delta)
 	var water_quality := _range_quality(moisture, float(data.optimal_low), float(data.optimal_high))
-	var feed_quality := clampf(nutrition / 0.45, 0.0, 1.0)
+	var feed_affinity := 1.0 if feed_profile == str(data.feed) else (0.36 if not feed_profile.is_empty() else 0.0)
+	var feed_quality := clampf(nutrition / 0.45, 0.0, 1.0) * feed_affinity
 	var soil_quality := 1.0 if soil_profile == str(data.soil) else 0.62
 	var care_quality := water_quality * 0.52 + feed_quality * 0.20 + soil_quality * 0.28
 	if moisture < 0.03 or moisture > 1.04:
