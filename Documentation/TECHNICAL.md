@@ -30,3 +30,7 @@
 4. Local and GitHub Actions smoke modes run a complete purchase-to-sale loop without human input.
 5. The exported Windows executable launches in headless smoke mode and exits successfully.
 6. A hidden-window visual capture is inspected for framing, blank rendering, and HUD overlap.
+
+## Release Automation
+
+Pushes to `main` run the complete validation and Windows export. A matching `vx.y.z` tag runs the same gates, uploads the executable without an archive wrapper, verifies it when downloading between jobs, and publishes `Documentation/RELEASE-NOTES.md` as `MVP Alpha x.y.z`. A mismatched tag fails before building.

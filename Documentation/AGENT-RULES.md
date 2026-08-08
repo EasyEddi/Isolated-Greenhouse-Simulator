@@ -30,3 +30,5 @@ These rules apply to every automated or assisted change in this repository.
 - Keep major version `0` until the owner explicitly requests otherwise.
 - Every release description must contain `Description`, `Changelog`, and GitHub-native contributor attribution.
 - Attach the standalone Windows executable named `IsolatedGreenhouse_x.y.z.exe`.
+- Before tagging, update `GAME_VERSION` in `.github/workflows/validate.yml`, the in-game version strings, and `Documentation/RELEASE-NOTES.md` together.
+- Release tags use `vx.y.z` and must exactly match the configured game version; the validated tag workflow publishes the executable.

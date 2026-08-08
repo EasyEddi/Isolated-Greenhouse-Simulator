@@ -22,7 +22,9 @@ Isolated Greenhouse is a calm first-person plant-care and greenhouse-management 
 
 ## Play
 
-The packaged Windows build is produced at `build/IsolatedGreenhouse_0.1.0.exe`.
+Download the standalone Windows executable from [GitHub Releases](https://github.com/EasyEddi/Isolated-Greenhouse-Simulator/releases/latest). No browser or external launcher is required.
+
+The local packaged build is produced at `build/IsolatedGreenhouse_0.1.0.exe`.
 
 Core controls:
 

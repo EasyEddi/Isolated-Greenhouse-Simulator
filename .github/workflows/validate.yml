@@ -3,6 +3,7 @@ name: Validate And Build
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
   workflow_dispatch:
 
@@ -17,6 +18,7 @@ env:
   GODOT_VERSION: 4.6.3
   GODOT_STATUS: stable
   GODOT_BIN: Godot_v4.6.3-stable_linux.x86_64
+  GAME_VERSION: 0.1.0
 
 jobs:
   validate-and-build:
@@ -25,7 +27,12 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
+
+      - name: Verify release tag
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: test "${GITHUB_REF_NAME}" = "v${GAME_VERSION}"
 
       - name: Install Godot and export templates
         shell: bash
@@ -58,10 +65,44 @@ jobs:
       - name: Export Windows release
         run: |
           mkdir -p build
-          ./${{ env.GODOT_BIN }} --headless --path . --export-release "Windows Desktop" build/IsolatedGreenhouse_0.1.0.exe
+          ./${{ env.GODOT_BIN }} --headless --path . --export-release "Windows Desktop" "build/IsolatedGreenhouse_${GAME_VERSION}.exe"
 
       - name: Upload Windows executable
         uses: actions/upload-artifact@v7
         with:
-          path: build/IsolatedGreenhouse_0.1.0.exe
+          path: build/IsolatedGreenhouse_${{ env.GAME_VERSION }}.exe
           archive: false
+
+  publish-release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: validate-and-build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out release notes
+        uses: actions/checkout@v7
+
+      - name: Download verified Windows executable
+        uses: actions/download-artifact@v8
+        with:
+          name: IsolatedGreenhouse_${{ env.GAME_VERSION }}.exe
+          path: release
+          digest-mismatch: error
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          executable="release/IsolatedGreenhouse_${GAME_VERSION}.exe"
+          test -f "${executable}"
+          sha256sum "${executable}" | tee release-sha256.txt
+          gh release create "${GITHUB_REF_NAME}" "${executable}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --verify-tag \
+            --latest \
+            --title "MVP Alpha ${GAME_VERSION}" \
+            --notes-file Documentation/RELEASE-NOTES.md
