@@ -14,7 +14,7 @@ MVP Alpha 0.1.0 is the first standalone playable release of Isolated Greenhouse.
 - Added a plant journal, current objectives, plant readouts, shift records, autosave, manual save, backup recovery, and resumed pending deliveries.
 - Made live plant care readouts distinguish moisture condition, missing feed, matching profiles, and mismatched profiles.
 - Hardened saves and the economy against malformed values, unknown stock, duplicate delivery collection, and invalid cart quantities.
-- Validated the release with 396 simulation checks, 88 scene and input checks, a complete gameplay smoke path, multi-aspect visual review, and a packaged-executable smoke test.
+- Validated the release with 480 simulation and plant-geometry checks, 88 scene and input checks, a complete gameplay smoke path, multi-aspect visual review, and a packaged-executable smoke test.
 
 # Contributors
 

@@ -60,6 +60,16 @@ func _test_catalog() -> void:
 		_expect(float(data.growth_seconds) >= 180.0, "%s does not grow instantly" % species_id)
 		_expect(int(data.offshoot_value) > int(data.starter_price), "%s supports a profitable care loop" % species_id)
 		_expect(FileAccess.file_exists(str(data.model)), "%s model exists" % species_id)
+		var packed_model = load(str(data.model))
+		_expect(packed_model is PackedScene, "%s model imports as a packed scene" % species_id)
+		if packed_model is PackedScene:
+			var model_root: Node = (packed_model as PackedScene).instantiate()
+			var metrics := _model_metrics(model_root)
+			_expect(int(metrics.meshes) > 0 and int(metrics.surfaces) > 0, "%s contains rendered mesh surfaces" % species_id)
+			_expect(int(metrics.vertices) >= 100, "%s contains substantial modeled geometry" % species_id)
+			_expect(int(metrics.materials) >= 2, "%s contains multiple authored materials" % species_id)
+			_expect(int(metrics.invalid_bounds) == 0, "%s mesh bounds are finite and non-empty" % species_id)
+			model_root.free()
 		_expect(PlantCatalog.item("starter:%s" % species_id).kind == "starter", "%s starter resolves" % species_id)
 		_expect(PlantCatalog.item("offshoot:%s" % species_id).kind == "offshoot", "%s offshoot resolves" % species_id)
 		var mutation_item := PlantCatalog.item("offshoot:%s#variegated" % species_id)
@@ -274,6 +284,8 @@ func _test_long_term_plant_simulation() -> void:
 			"offshoot_progress": 0.0,
 		})
 		var growth_before := actor.growth
+		_expect(actor.plant_visual != null, "%s visual instantiates in the plant actor" % species_id)
+		_expect(actor.growth_parts.size() >= 3, "%s exposes multiple continuous growth parts" % species_id)
 		for _minute in range(6):
 			actor.moisture = (float(data.optimal_low) + float(data.optimal_high)) * 0.5
 			actor.nutrition = 0.82
@@ -471,6 +483,29 @@ func _count_rendered_instances(node: Node) -> int:
 	for child in node.get_children():
 		count += _count_rendered_instances(child)
 	return count
+
+
+func _model_metrics(root_node: Node) -> Dictionary:
+	var metrics := {"meshes": 0, "surfaces": 0, "vertices": 0, "materials": 0, "invalid_bounds": 0}
+	_accumulate_model_metrics(root_node, metrics)
+	return metrics
+
+
+func _accumulate_model_metrics(node: Node, metrics: Dictionary) -> void:
+	if node is MeshInstance3D and node.mesh:
+		metrics.meshes = int(metrics.meshes) + 1
+		var bounds: AABB = node.mesh.get_aabb()
+		if not bounds.position.is_finite() or not bounds.size.is_finite() or bounds.size.length_squared() <= 0.000001:
+			metrics.invalid_bounds = int(metrics.invalid_bounds) + 1
+		for surface in range(node.mesh.get_surface_count()):
+			metrics.surfaces = int(metrics.surfaces) + 1
+			var arrays: Array = node.mesh.surface_get_arrays(surface)
+			if arrays.size() > Mesh.ARRAY_VERTEX and arrays[Mesh.ARRAY_VERTEX] is PackedVector3Array:
+				metrics.vertices = int(metrics.vertices) + PackedVector3Array(arrays[Mesh.ARRAY_VERTEX]).size()
+			if node.mesh.surface_get_material(surface) != null:
+				metrics.materials = int(metrics.materials) + 1
+	for child in node.get_children():
+		_accumulate_model_metrics(child, metrics)
 
 
 func _expect(condition: bool, label: String) -> void:

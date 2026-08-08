@@ -325,6 +325,7 @@ func _run_smoke_test() -> void:
 			_expect(propagation_slot.interact(player, "trowel"), "propagation soil can be prepared", failures)
 			_expect(propagation_slot.interact(player, "offshoot:mint"), "harvested offshoot can become a new plant", failures)
 		_expect(game_state.sell_offshoot("offshoot:mint"), "offshoot can be sold", failures)
+		_expect(game_state.objective_index == GreenhouseGameState.OBJECTIVES.size() - 1, "guided shift reaches open-ended nursery play", failures)
 
 	_expect(game_state.save_game(world.plant_snapshots(), world.storage_snapshots()), "save game can be written", failures)
 	audio_manager.shutdown()
