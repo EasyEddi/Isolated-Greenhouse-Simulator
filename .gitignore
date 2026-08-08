@@ -1,0 +1,8 @@
+.godot/
+build/
+captures/
+logs/
+*.tmp
+*.log
+*.translation
+assets/source/

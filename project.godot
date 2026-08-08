@@ -1,0 +1,38 @@
+; Engine configuration file.
+; Prefer editing through source control so headless builds remain reproducible.
+
+config_version=5
+
+[application]
+
+config/name="Isolated Greenhouse"
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.6", "GL Compatibility")
+boot_splash/bg_color=Color(0.035, 0.055, 0.048, 1)
+config/icon="res://assets/branding/icon.svg"
+
+[display]
+
+window/size/viewport_width=1600
+window/size/viewport_height=900
+window/size/window_width_override=1280
+window/size/window_height_override=720
+window/stretch/mode="canvas_items"
+window/handheld/orientation=1
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/default_filters/use_nearest_mipmap_filter=false
+environment/defaults/default_clear_color=Color(0.035, 0.055, 0.048, 1)
+limits/time/time_rollover_secs=3600.0
+
+[physics]
+
+common/enable_pause_aware_picking=true
+3d/default_gravity=18.0
+
+[audio]
+
+driver/enable_input=false
