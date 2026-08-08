@@ -3,11 +3,12 @@
 ## Automated Coverage
 
 - Headless editor import: pass, no stderr output.
-- Simulation and state suite: `355/355` checks passing.
+- Simulation and state suite: `358/358` checks passing.
 - Scene integration suite: `67/67` checks passing, no stderr output.
 - Complete purchase, drone delivery, pot preparation, care, harvest, sale, and save smoke path: pass.
 - Consecutive drone orders: FIFO delivery order verified with two physical crates.
 - Full reload: leaf balance, inventory, pending delivery data, continuous plant growth, mutations, and all twelve shelf slots persist.
+- Save recovery: a deliberately corrupted primary JSON file falls back to the previous valid backup.
 - Input modes: fixed terminal camera from three approach positions, `F` entry, ignored `E`, `Escape` exit, pause freeze, and movement restoration verified.
 
 ## Visual Review

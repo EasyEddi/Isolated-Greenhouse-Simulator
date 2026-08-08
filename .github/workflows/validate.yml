@@ -52,6 +52,9 @@ jobs:
       - name: Run scene integration tests
         run: ./${{ env.GODOT_BIN }} --headless --path . --script res://tests/run_integration_tests.gd
 
+      - name: Run complete gameplay smoke test
+        run: ./${{ env.GODOT_BIN }} --headless --path . -- --smoke-test
+
       - name: Export Windows release
         run: |
           mkdir -p build

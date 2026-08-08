@@ -4,6 +4,10 @@ var failures: Array[String] = []
 var checks := 0
 var save_existed := false
 var save_backup := PackedByteArray()
+var backup_save_existed := false
+var backup_save_backup := PackedByteArray()
+var temp_save_existed := false
+var temp_save_backup := PackedByteArray()
 
 
 func _initialize() -> void:
@@ -248,12 +252,25 @@ func _backup_save() -> void:
 	save_existed = FileAccess.file_exists(GreenhouseGameState.SAVE_PATH)
 	if save_existed:
 		save_backup = FileAccess.get_file_as_bytes(GreenhouseGameState.SAVE_PATH)
+	backup_save_existed = FileAccess.file_exists(GreenhouseGameState.SAVE_BACKUP_PATH)
+	if backup_save_existed:
+		backup_save_backup = FileAccess.get_file_as_bytes(GreenhouseGameState.SAVE_BACKUP_PATH)
+	temp_save_existed = FileAccess.file_exists(GreenhouseGameState.SAVE_TEMP_PATH)
+	if temp_save_existed:
+		temp_save_backup = FileAccess.get_file_as_bytes(GreenhouseGameState.SAVE_TEMP_PATH)
 
 
 func _restore_save() -> void:
-	if save_existed:
-		var file := FileAccess.open(GreenhouseGameState.SAVE_PATH, FileAccess.WRITE)
+	_restore_save_file(GreenhouseGameState.SAVE_PATH, save_existed, save_backup)
+	_restore_save_file(GreenhouseGameState.SAVE_BACKUP_PATH, backup_save_existed, backup_save_backup)
+	_restore_save_file(GreenhouseGameState.SAVE_TEMP_PATH, temp_save_existed, temp_save_backup)
+
+
+func _restore_save_file(path: String, existed: bool, contents: PackedByteArray) -> void:
+	if existed:
+		var file := FileAccess.open(path, FileAccess.WRITE)
 		if file:
-			file.store_buffer(save_backup)
-	else:
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(GreenhouseGameState.SAVE_PATH))
+			file.store_buffer(contents)
+			file.close()
+	elif FileAccess.file_exists(path):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))

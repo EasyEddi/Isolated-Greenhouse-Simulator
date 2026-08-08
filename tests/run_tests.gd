@@ -4,6 +4,10 @@ var failures: Array[String] = []
 var checks := 0
 var save_existed := false
 var save_backup := PackedByteArray()
+var backup_save_existed := false
+var backup_save_backup := PackedByteArray()
+var temp_save_existed := false
+var temp_save_backup := PackedByteArray()
 
 
 func _initialize() -> void:
@@ -165,8 +169,19 @@ func _test_economy_and_save() -> void:
 	_expect(bool(loaded.tutorial_care_actions.get("water", false)), "partial care tutorial progress round-trips")
 	_expect(loaded.pending_orders.size() == 1 and str(loaded.pending_orders[0].id) == saved_order_id, "pending drone order round-trips")
 	_expect(loaded.storage_snapshot.size() == 1 and str(loaded.storage_snapshot[0].item_id) == "soil:moist", "storage shelf round-trips")
+	_expect(state.save_game(snapshot), "second save creates a recoverable backup")
+	var corrupt_file := FileAccess.open(GreenhouseGameState.SAVE_PATH, FileAccess.WRITE)
+	corrupt_file.store_string("{not valid json")
+	corrupt_file.close()
+	var recovered := GreenhouseGameState.new()
+	root.add_child(recovered)
+	await process_frame
+	var recovered_payload := recovered.load_game()
+	_expect(not recovered_payload.is_empty() and recovered.currency == 116, "corrupt primary save recovers from the previous valid backup")
+	_expect(GreenhouseGameState.has_save_file(), "continue remains available when only backup is valid")
 	state.queue_free()
 	loaded.queue_free()
+	recovered.queue_free()
 	await process_frame
 
 
@@ -372,16 +387,26 @@ func _expect(condition: bool, label: String) -> void:
 func _backup_save() -> void:
 	save_existed = FileAccess.file_exists(GreenhouseGameState.SAVE_PATH)
 	if save_existed:
-		var source := FileAccess.open(GreenhouseGameState.SAVE_PATH, FileAccess.READ)
-		if source:
-			save_backup = source.get_buffer(source.get_length())
+		save_backup = FileAccess.get_file_as_bytes(GreenhouseGameState.SAVE_PATH)
+	backup_save_existed = FileAccess.file_exists(GreenhouseGameState.SAVE_BACKUP_PATH)
+	if backup_save_existed:
+		backup_save_backup = FileAccess.get_file_as_bytes(GreenhouseGameState.SAVE_BACKUP_PATH)
+	temp_save_existed = FileAccess.file_exists(GreenhouseGameState.SAVE_TEMP_PATH)
+	if temp_save_existed:
+		temp_save_backup = FileAccess.get_file_as_bytes(GreenhouseGameState.SAVE_TEMP_PATH)
 
 
 func _restore_save() -> void:
-	var global_path := ProjectSettings.globalize_path(GreenhouseGameState.SAVE_PATH)
-	if save_existed:
-		var target := FileAccess.open(GreenhouseGameState.SAVE_PATH, FileAccess.WRITE)
+	_restore_save_file(GreenhouseGameState.SAVE_PATH, save_existed, save_backup)
+	_restore_save_file(GreenhouseGameState.SAVE_BACKUP_PATH, backup_save_existed, backup_save_backup)
+	_restore_save_file(GreenhouseGameState.SAVE_TEMP_PATH, temp_save_existed, temp_save_backup)
+
+
+func _restore_save_file(path: String, existed: bool, contents: PackedByteArray) -> void:
+	if existed:
+		var target := FileAccess.open(path, FileAccess.WRITE)
 		if target:
-			target.store_buffer(save_backup)
-	elif FileAccess.file_exists(GreenhouseGameState.SAVE_PATH):
-		DirAccess.remove_absolute(global_path)
+			target.store_buffer(contents)
+			target.close()
+	elif FileAccess.file_exists(path):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))

@@ -35,7 +35,7 @@ func _ready() -> void:
 	if args.has("--benchmark"):
 		await _run_benchmark()
 		return
-	hud.show_start_menu(FileAccess.file_exists(GreenhouseGameState.SAVE_PATH))
+	hud.show_start_menu(GreenhouseGameState.has_save_file())
 
 
 func _notification(what: int) -> void:

@@ -7,6 +7,8 @@ signal delivery_requested(order: Dictionary)
 signal objective_changed(text: String)
 
 const SAVE_PATH := "user://isolated_greenhouse_save.json"
+const SAVE_BACKUP_PATH := "user://isolated_greenhouse_save.json.bak"
+const SAVE_TEMP_PATH := "user://isolated_greenhouse_save.json.tmp"
 const SAVE_VERSION := 1
 
 const OBJECTIVES := [
@@ -282,23 +284,40 @@ func save_game(snapshot: Array = plants_snapshot, stored_items: Array = storage_
 		"next_order_sequence": next_order_sequence,
 		"tutorial_care_actions": tutorial_care_actions,
 	}
-	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	var file := FileAccess.open(SAVE_TEMP_PATH, FileAccess.WRITE)
 	if file == null:
 		message_requested.emit("Could not save the greenhouse", "warning")
 		return false
 	file.store_string(JSON.stringify(payload, "\t"))
+	file.flush()
+	file.close()
+	var save_path := ProjectSettings.globalize_path(SAVE_PATH)
+	var backup_path := ProjectSettings.globalize_path(SAVE_BACKUP_PATH)
+	var temp_path := ProjectSettings.globalize_path(SAVE_TEMP_PATH)
+	if FileAccess.file_exists(SAVE_PATH):
+		if FileAccess.file_exists(SAVE_BACKUP_PATH):
+			DirAccess.remove_absolute(backup_path)
+		if DirAccess.rename_absolute(save_path, backup_path) != OK:
+			DirAccess.remove_absolute(temp_path)
+			message_requested.emit("Could not protect the previous save", "warning")
+			return false
+	if DirAccess.rename_absolute(temp_path, save_path) != OK:
+		if FileAccess.file_exists(SAVE_BACKUP_PATH) and not FileAccess.file_exists(SAVE_PATH):
+			DirAccess.rename_absolute(backup_path, save_path)
+		DirAccess.remove_absolute(temp_path)
+		message_requested.emit("Could not finish saving the greenhouse", "warning")
+		return false
 	message_requested.emit("Greenhouse saved", "neutral")
 	return true
 
 
 func load_game() -> Dictionary:
-	if not FileAccess.file_exists(SAVE_PATH):
-		return {}
-	var file := FileAccess.open(SAVE_PATH, FileAccess.READ)
-	if file == null:
-		return {}
-	var payload = JSON.parse_string(file.get_as_text())
-	if not payload is Dictionary or int(payload.get("version", 0)) != SAVE_VERSION:
+	var payload := _read_save_payload(SAVE_PATH)
+	var recovered := false
+	if payload.is_empty():
+		payload = _read_save_payload(SAVE_BACKUP_PATH)
+		recovered = not payload.is_empty()
+	if payload.is_empty():
 		return {}
 	currency = int(payload.get("currency", 85))
 	inventory = Dictionary(payload.get("inventory", {})).duplicate(true)
@@ -320,7 +339,28 @@ func load_game() -> Dictionary:
 	tutorial_care_actions = Dictionary(payload.get("tutorial_care_actions", {})).duplicate(true)
 	state_changed.emit()
 	objective_changed.emit(current_objective())
+	if recovered:
+		message_requested.emit("Recovered the previous greenhouse save", "warning")
 	return payload
+
+
+static func has_save_file() -> bool:
+	return not _read_save_payload(SAVE_PATH).is_empty() or not _read_save_payload(SAVE_BACKUP_PATH).is_empty()
+
+
+static func _read_save_payload(path: String) -> Dictionary:
+	if not FileAccess.file_exists(path):
+		return {}
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return {}
+	var parser := JSON.new()
+	if parser.parse(file.get_as_text()) != OK:
+		return {}
+	var parsed = parser.data
+	if not parsed is Dictionary or int(parsed.get("version", 0)) != SAVE_VERSION:
+		return {}
+	return Dictionary(parsed)
 
 
 func _refresh_dynamic_hotbar(item_id: String) -> void:

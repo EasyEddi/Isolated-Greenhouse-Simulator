@@ -6,7 +6,7 @@
 - Renderer: GL Compatibility for broad Windows hardware support
 - Language: GDScript
 - Target: Windows x86_64, release PCK embedded in the executable
-- Persistence: versioned JSON save under `user://isolated_greenhouse_save.json`
+- Persistence: versioned JSON save under `user://isolated_greenhouse_save.json`, written through a temporary file with previous-save recovery.
 
 ## Architecture
 
@@ -27,6 +27,6 @@
 1. Headless editor import exits without parse or resource errors.
 2. Unit tests cover catalog integrity, purchases, queued deliveries, storage transfers, care calculations, growth, harvesting, selling, and save round-trips.
 3. Scene audit checks required departments, collisions, interactions, lights, plant slots, and shelf slots.
-4. Automated smoke mode runs a complete purchase-to-sale loop without human input.
+4. Local and GitHub Actions smoke modes run a complete purchase-to-sale loop without human input.
 5. The exported Windows executable launches in headless smoke mode and exits successfully.
 6. A hidden-window visual capture is inspected for framing, blank rendering, and HUD overlap.
