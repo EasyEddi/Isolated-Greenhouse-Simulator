@@ -1,9 +1,9 @@
 extends Node
 
 const VERSION := "0.1.0"
-const TERMINAL_POSITION := Vector3(-8.1, 0.05, 6.38)
+const TERMINAL_POSITION := Vector3(-7.72, 0.05, 7.05)
 const TERMINAL_YAW := PI
-const TERMINAL_PITCH := -0.16
+const TERMINAL_PITCH := -0.49
 
 var game_state: GreenhouseGameState
 var world: GreenhouseWorldBuilder
@@ -11,6 +11,7 @@ var player: GreenhousePlayer
 var drone: GreenhouseDroneController
 var hud: GreenhouseHUD
 var terminal_ui: GreenhouseTerminalUI
+var audio_manager: GreenhouseAudioManager
 var autosave_timer: Timer
 
 var terminal_active := false
@@ -29,6 +30,9 @@ func _ready() -> void:
 		return
 	if args.has("--capture"):
 		await _run_capture_mode(args)
+		return
+	if args.has("--benchmark"):
+		await _run_benchmark()
 		return
 	hud.show_start_menu(FileAccess.file_exists(GreenhouseGameState.SAVE_PATH))
 
@@ -73,6 +77,11 @@ func _build_game() -> void:
 	hud.name = "HUD"
 	add_child(hud)
 	hud.configure(game_state, player)
+	audio_manager = GreenhouseAudioManager.new()
+	audio_manager.name = "AudioManager"
+	add_child(audio_manager)
+	audio_manager.configure(game_state, player, drone)
+	audio_manager.bind_plants(world.plant_actors)
 
 	world.terminal_open_requested.connect(_open_terminal)
 	world.plant_inspection_requested.connect(hud.show_plant)
@@ -119,6 +128,7 @@ func _open_terminal() -> void:
 	return_yaw = player.rotation.y
 	return_pitch = player.look_pitch
 	player.set_gameplay_enabled(false, false)
+	hud.set_terminal_mode(true)
 	world.terminal_interactable.interaction_enabled = false
 	var tween := create_tween().set_parallel(true)
 	tween.set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_IN_OUT)
@@ -149,6 +159,7 @@ func _close_terminal() -> void:
 	terminal_active = false
 	terminal_transitioning = false
 	world.terminal_interactable.interaction_enabled = true
+	hud.set_terminal_mode(false)
 	player.set_gameplay_enabled(true)
 
 
@@ -248,6 +259,7 @@ func _run_smoke_test() -> void:
 			break
 	_expect(empty_slot != null, "an empty pot is available", failures)
 	if empty_slot:
+		empty_slot.mutation_chance = 0.0
 		_expect(empty_slot.interact(player, "soil:moist"), "soil can be added", failures)
 		_expect(empty_slot.interact(player, "trowel"), "soil can be prepared", failures)
 		_expect(empty_slot.interact(player, "starter:mint"), "starter can be planted", failures)
@@ -265,6 +277,13 @@ func _run_smoke_test() -> void:
 		_expect(game_state.sell_offshoot("offshoot:mint"), "offshoot can be sold", failures)
 
 	_expect(game_state.save_game(world.plant_snapshots()), "save game can be written", failures)
+	audio_manager.shutdown()
+	audio_manager.queue_free()
+	if hud.message_tween and hud.message_tween.is_running():
+		hud.message_tween.kill()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	await get_tree().create_timer(0.15).timeout
 	if failures.is_empty():
 		print("ISOLATED_GREENHOUSE_SMOKE_TEST: PASS")
 		get_tree().quit(0)
@@ -283,12 +302,107 @@ func _expect(condition: bool, label: String, failures: Array[String]) -> void:
 
 
 func _run_capture_mode(args: Array) -> void:
-	hud.close_start_menu()
-	player.global_position = Vector3(-5.8, 0.05, 3.9)
-	player.rotation.y = -2.35
-	player.look_pitch = -0.10
+	var capture_view := "overview"
+	var view_index := args.find("--capture-view")
+	if view_index >= 0 and view_index + 1 < args.size():
+		capture_view = str(args[view_index + 1])
+	var view: Array = {
+		"overview": [Vector3(-5.8, 0.05, 3.9), -2.35, -0.10],
+		"greenhouse": [Vector3(1.6, 0.05, -1.0), -0.88, -0.08],
+		"living": [Vector3(-11.2, 0.05, 2.7), 2.08, -0.08],
+		"office": [Vector3(-5.4, 0.05, 4.9), 2.55, -0.06],
+		"delivery": [Vector3(5.6, 0.05, 4.7), -2.02, -0.07],
+		"delivery_drone": [Vector3(5.6, 0.05, 4.7), -2.02, 0.31],
+		"nursery_left": [Vector3(2.4, 0.05, 2.78), PI, -0.26],
+		"nursery_right": [Vector3(6.9, 0.05, 2.78), PI, -0.26],
+		"nursery_back": [Vector3(2.4, 0.05, 3.12), 0.0, -0.26],
+		"mutation": [Vector3(8.25, 0.05, 2.88), PI, -0.31],
+		"greenhouse_inside": [Vector3(7.0, 0.05, -4.92), 0.0, -0.22],
+		"water_station": [Vector3(-9.0, 0.05, -5.8), 0.68, -0.16],
+		"watering": [Vector3(2.85, 0.05, 2.78), PI, -0.26],
+		"delivery_crate": [Vector3(5.1, 0.05, 4.1), -2.02, 0.04],
+		"inventory": [Vector3(-5.8, 0.05, 3.9), -2.35, -0.10],
+		"journal": [Vector3(-5.8, 0.05, 3.9), -2.35, -0.10],
+		"pause": [Vector3(-5.8, 0.05, 3.9), -2.35, -0.10],
+		"held_watering_can": [Vector3(-9.1, 0.05, -5.5), 0.72, -0.08],
+		"held_trowel": [Vector3(-9.1, 0.05, -5.5), 0.72, -0.08],
+		"held_secateurs": [Vector3(-9.1, 0.05, -5.5), 0.72, -0.08],
+		"held_soil": [Vector3(-9.1, 0.05, -5.5), 0.72, -0.08],
+		"held_feed": [Vector3(-9.1, 0.05, -5.5), 0.72, -0.08],
+		"held_starter": [Vector3(-9.1, 0.05, -5.5), 0.72, -0.08],
+		"terminal": [TERMINAL_POSITION, TERMINAL_YAW, TERMINAL_PITCH],
+		"terminal_camera": [TERMINAL_POSITION, TERMINAL_YAW, TERMINAL_PITCH],
+	}.get(capture_view, [Vector3(-5.8, 0.05, 3.9), -2.35, -0.10])
+	if capture_view == "menu":
+		hud.show_start_menu(FileAccess.file_exists(GreenhouseGameState.SAVE_PATH))
+	else:
+		hud.close_start_menu()
+	player.global_position = view[0]
+	player.rotation.y = view[1]
+	player.look_pitch = view[2]
 	player.camera_pivot.rotation.x = player.look_pitch
 	player.set_gameplay_enabled(false, false)
+	if capture_view == "terminal":
+		hud.set_terminal_mode(true)
+		terminal_ui.open()
+		var category_index := args.find("--terminal-category")
+		if category_index >= 0 and category_index + 1 < args.size():
+			var category := str(args[category_index + 1])
+			if category == "sell":
+				game_state.add_item("offshoot:monstera_deliciosa", 2)
+				game_state.add_item("offshoot:mint", 1)
+				terminal_ui._set_mode("sell")
+			else:
+				terminal_ui._set_category(category)
+	elif capture_view.begins_with("held_"):
+		var held_item: String = {
+			"held_watering_can": "watering_can",
+			"held_trowel": "trowel",
+			"held_secateurs": "secateurs",
+			"held_soil": "soil:aroid",
+			"held_feed": "feed:foliage",
+			"held_starter": "starter:monstera_deliciosa",
+		}.get(capture_view, "watering_can")
+		if game_state.item_count(held_item) <= 0:
+			game_state.add_item(held_item)
+		game_state.hotbar[0] = held_item
+		game_state.select_hotbar(0)
+	elif capture_view == "terminal_camera":
+		hud.set_terminal_mode(true)
+	elif capture_view == "mutation":
+		player.held_root.visible = false
+		if world.plant_actors.size() > 7:
+			hud.show_plant(world.plant_actors[7])
+	elif capture_view.begins_with("nursery_") or capture_view in ["greenhouse_inside", "water_station"]:
+		player.held_root.visible = false
+	elif capture_view == "delivery_drone":
+		player.held_root.visible = false
+		drone.visible = true
+		drone.position = world.drone_hover_position
+		if drone.loaded_visual:
+			drone.loaded_visual.visible = true
+		if drone.empty_visual:
+			drone.empty_visual.visible = false
+	elif capture_view == "watering":
+		player.set_gameplay_enabled(true, false)
+		Input.action_press("interact")
+	elif capture_view == "delivery_crate":
+		var order := {"id": "qa-delivery", "items": {"starter:mint": 1}, "total": 16}
+		drone.queue_order(order)
+		drone.force_complete_active_delivery()
+		drone.visible = true
+		drone.position = world.drone_hover_position + Vector3(0, 0.65, 0)
+		if drone.loaded_visual:
+			drone.loaded_visual.visible = false
+		if drone.empty_visual:
+			drone.empty_visual.visible = true
+	elif capture_view == "inventory":
+		hud.toggle_inventory()
+	elif capture_view == "journal":
+		hud.toggle_inventory()
+		hud._show_journal_tab()
+	elif capture_view == "pause":
+		hud.toggle_pause()
 	await get_tree().create_timer(1.2).timeout
 	var output_path := "user://isolated-greenhouse-capture.png"
 	var index := args.find("--capture")
@@ -296,5 +410,48 @@ func _run_capture_mode(args: Array) -> void:
 		output_path = str(args[index + 1])
 	var image := get_viewport().get_texture().get_image()
 	var error := image.save_png(output_path)
+	Input.action_release("interact")
 	print("ISOLATED_GREENHOUSE_CAPTURE: %s (%s)" % [output_path, error_string(error)])
+	audio_manager.shutdown()
+	audio_manager.queue_free()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	await get_tree().create_timer(0.15).timeout
 	get_tree().quit(0 if error == OK else 1)
+
+
+func _run_benchmark() -> void:
+	hud.close_start_menu()
+	player.global_position = Vector3(-5.8, 0.05, 3.9)
+	player.rotation.y = -2.35
+	player.look_pitch = -0.10
+	player.camera_pivot.rotation.x = player.look_pitch
+	player.held_root.visible = false
+	player.set_gameplay_enabled(false, false)
+	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
+	await get_tree().create_timer(1.0).timeout
+	var frame_times: Array[float] = []
+	var start_usec := Time.get_ticks_usec()
+	var previous_usec := start_usec
+	var peak_draw_calls := 0.0
+	while Time.get_ticks_usec() - start_usec < 5_000_000:
+		await get_tree().process_frame
+		var now_usec := Time.get_ticks_usec()
+		frame_times.append((now_usec - previous_usec) / 1000.0)
+		previous_usec = now_usec
+		player.rotation.y += 0.0018
+		peak_draw_calls = maxf(peak_draw_calls, Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))
+	frame_times.sort()
+	var total_ms := 0.0
+	for frame_ms in frame_times:
+		total_ms += frame_ms
+	var average_ms := total_ms / maxf(frame_times.size(), 1)
+	var p95_index := clampi(int(frame_times.size() * 0.95), 0, frame_times.size() - 1)
+	var p95_ms: float = frame_times[p95_index]
+	print("ISOLATED_GREENHOUSE_BENCHMARK: frames=%d avg_ms=%.3f p95_ms=%.3f avg_fps=%.1f peak_draw_calls=%d" % [frame_times.size(), average_ms, p95_ms, 1000.0 / maxf(average_ms, 0.001), int(peak_draw_calls)])
+	audio_manager.shutdown()
+	audio_manager.queue_free()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	await get_tree().create_timer(0.15).timeout
+	get_tree().quit(0)

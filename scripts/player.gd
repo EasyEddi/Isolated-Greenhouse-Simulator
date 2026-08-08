@@ -10,6 +10,8 @@ var game_state: GreenhouseGameState
 var camera_pivot: Node3D
 var camera: Camera3D
 var held_root: Node3D
+var water_effect_root: Node3D
+var water_drops: Array[MeshInstance3D] = []
 var gameplay_enabled: bool = true
 var mouse_sensitivity: float = 0.0021
 var walk_speed: float = 4.2
@@ -19,6 +21,7 @@ var look_pitch: float = 0.0
 var focused_target = null
 var focused_prompt: String = ""
 var bob_time: float = 0.0
+var watering_active := false
 var _last_held_item: String = ""
 
 
@@ -88,6 +91,7 @@ func _physics_process(delta: float) -> void:
 			focused_target.hold_interact(self, game_state.selected_item(), delta)
 	else:
 		velocity = Vector3.ZERO
+	_update_watering_visual(delta)
 
 
 func set_gameplay_enabled(enabled: bool, capture_mouse: bool = true) -> void:
@@ -123,6 +127,62 @@ func _build_player() -> void:
 	held_root.position = Vector3(0.39, -0.36, -0.72)
 	held_root.rotation_degrees = Vector3(-9.0, -12.0, 6.0)
 	camera.add_child(held_root)
+	_build_watering_visual()
+
+
+func _build_watering_visual() -> void:
+	water_effect_root = Node3D.new()
+	water_effect_root.name = "WaterStream"
+	camera.add_child(water_effect_root)
+	var drop_mesh := SphereMesh.new()
+	drop_mesh.radius = 0.018
+	drop_mesh.height = 0.050
+	drop_mesh.radial_segments = 7
+	drop_mesh.rings = 4
+	var water_material := StandardMaterial3D.new()
+	water_material.albedo_color = Color(0.33, 0.78, 0.92, 0.72)
+	water_material.emission_enabled = true
+	water_material.emission = Color("#57bdd8")
+	water_material.emission_energy_multiplier = 0.28
+	water_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	water_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	for index in range(14):
+		var drop := MeshInstance3D.new()
+		drop.name = "Drop_%02d" % index
+		drop.mesh = drop_mesh
+		drop.material_override = water_material
+		drop.visible = false
+		water_effect_root.add_child(drop)
+		water_drops.append(drop)
+
+
+func _update_watering_visual(delta: float) -> void:
+	if not held_root or not water_effect_root:
+		return
+	var active: bool = (
+		gameplay_enabled
+		and game_state.selected_item() == "watering_can"
+		and Input.is_action_pressed("interact")
+		and focused_target is GreenhousePlantActor
+		and not focused_target.species_id.is_empty()
+		and game_state.watering_can_liters > 0.001
+	)
+	watering_active = active
+	held_root.rotation.z = lerp_angle(held_root.rotation.z, deg_to_rad(24.0 if active else 6.0), delta * 7.5)
+	held_root.position.y = lerpf(held_root.position.y, -0.30 if active else -0.36, delta * 7.5)
+	var now := Time.get_ticks_msec() * 0.0017
+	for index in range(water_drops.size()):
+		var drop := water_drops[index]
+		drop.visible = active
+		if not active:
+			continue
+		var progress := fmod(now + float(index) / water_drops.size(), 1.0)
+		var start := Vector3(0.17, -0.22, -0.70)
+		var finish := Vector3(0.0, -0.06, -2.15)
+		drop.position = start.lerp(finish, progress)
+		drop.position.y -= sin(progress * PI) * 0.12 + progress * progress * 0.08
+		drop.position.x += sin(float(index) * 2.31) * 0.008
+		drop.scale = Vector3.ONE * lerpf(0.72, 1.12, sin(progress * PI))
 
 
 func _update_focus() -> void:
@@ -169,7 +229,7 @@ func _refresh_held_item() -> void:
 		"feed":
 			model_name = "fertilizer_bag"
 		"starter", "offshoot":
-			model_name = "empty_pot"
+			model_name = "plant_starter"
 	if model_name.is_empty():
 		return
 	var resource = load("res://assets/models/props/%s.glb" % model_name)
@@ -179,9 +239,10 @@ func _refresh_held_item() -> void:
 		var first_person_scale: float = {
 			"watering_can": 0.42,
 			"trowel": 0.52,
-			"secateurs": 0.55,
+			"secateurs": 0.24,
 			"soil_bag": 0.48,
 			"fertilizer_bag": 0.48,
 			"empty_pot": 0.52,
+			"plant_starter": 0.66,
 		}.get(model_name, 0.50)
 		model.scale = Vector3.ONE * first_person_scale

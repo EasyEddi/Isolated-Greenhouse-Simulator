@@ -30,6 +30,8 @@ var state_time: float = 0.0
 var segment_duration: float = 1.0
 var segment_start: Vector3
 var segment_end: Vector3
+var loaded_visual: Node3D
+var empty_visual: Node3D
 
 
 func configure(state: GreenhouseGameState, parent: Node3D, entry: Vector3, hover: Vector3, pad: Vector3) -> GreenhouseDroneController:
@@ -75,8 +77,10 @@ func _start_next_order() -> void:
 	visible = true
 	position = entry_position
 	rotation = Vector3.ZERO
-	if package_visual:
-		package_visual.visible = true
+	if loaded_visual:
+		loaded_visual.visible = true
+	if empty_visual:
+		empty_visual.visible = false
 	_begin_segment(FlightState.APPROACH, entry_position, hover_position + Vector3(0, 0.65, 0), 4.2)
 	game_state.message_requested.emit("Delivery drone entering the hall", "neutral")
 
@@ -147,8 +151,10 @@ func _drop_crate() -> void:
 		strap_material.roughness = 0.64
 		strap.material_override = strap_material
 		delivery_crate.add_child(strap)
-	if package_visual:
-		package_visual.visible = false
+	if loaded_visual:
+		loaded_visual.visible = false
+	if empty_visual:
+		empty_visual.visible = true
 	delivery_landed.emit(crate_order.duplicate(true))
 	game_state.message_requested.emit("Package landed on the delivery pad", "good")
 
@@ -175,14 +181,20 @@ func _on_crate_interacted(_player, _selected_item: String) -> bool:
 func _build_drone() -> void:
 	name = "DeliveryDrone"
 	visible = false
-	var resource = load("res://assets/models/props/delivery_drone_package.glb")
-	if resource is PackedScene:
-		drone_visual = resource.instantiate()
-		add_child(drone_visual)
+	var loaded_resource = load("res://assets/models/props/delivery_drone_package.glb")
+	if loaded_resource is PackedScene:
+		loaded_visual = loaded_resource.instantiate()
+		drone_visual = loaded_visual
+		add_child(loaded_visual)
 	else:
 		drone_visual = Node3D.new()
 		add_child(drone_visual)
-	package_visual = drone_visual
+	var empty_resource = load("res://assets/models/props/delivery_drone.glb")
+	if empty_resource is PackedScene:
+		empty_visual = empty_resource.instantiate()
+		empty_visual.visible = false
+		add_child(empty_visual)
+	package_visual = loaded_visual
 	var disc_material := StandardMaterial3D.new()
 	disc_material.albedo_color = Color(0.25, 0.78, 0.82, 0.20)
 	disc_material.emission_enabled = true

@@ -16,6 +16,14 @@ const FEED_NAMES := {
 	"succulent": "Succulent Tonic",
 }
 
+const MUTATION_NAMES := {
+	"variegated": "Variegated",
+}
+
+const MUTATION_VALUE_MULTIPLIERS := {
+	"variegated": 1.65,
+}
+
 const SPECIES := {
 	"monstera_deliciosa": {
 		"name": "Monstera deliciosa",
@@ -215,6 +223,7 @@ const BASE_ITEMS := {
 	"watering_can": {"name": "Watering can", "kind": "tool", "price": 0, "icon": "water"},
 	"trowel": {"name": "Trowel", "kind": "tool", "price": 0, "icon": "trowel"},
 	"secateurs": {"name": "Secateurs", "kind": "tool", "price": 0, "icon": "cut"},
+	"empty_pot": {"name": "Empty pot", "kind": "equipment", "price": 0, "icon": "starter"},
 	"soil:aroid": {"name": "Aroid Mix", "kind": "soil", "profile": "aroid", "price": 8, "icon": "soil"},
 	"soil:moist": {"name": "Moist Mix", "kind": "soil", "profile": "moist", "price": 8, "icon": "soil"},
 	"soil:loam": {"name": "Loam Mix", "kind": "soil", "profile": "loam", "price": 7, "icon": "soil"},
@@ -252,14 +261,20 @@ static func item(item_id: String) -> Dictionary:
 				"icon": "starter",
 			}
 	if item_id.begins_with("offshoot:"):
-		var species_id := item_id.trim_prefix("offshoot:")
+		var payload := item_id.trim_prefix("offshoot:")
+		var parts := payload.split("#", false, 1)
+		var species_id := str(parts[0])
+		var mutation_id := str(parts[1]) if parts.size() > 1 else ""
 		var data := species(species_id)
 		if data:
+			var multiplier := float(MUTATION_VALUE_MULTIPLIERS.get(mutation_id, 1.0))
+			var mutation_prefix := "%s " % MUTATION_NAMES.get(mutation_id, mutation_id.capitalize()) if not mutation_id.is_empty() else ""
 			return {
-				"name": "%s offshoot" % data.name,
+				"name": "%s%s offshoot" % [mutation_prefix, data.name],
 				"kind": "offshoot",
 				"species": species_id,
-				"price": data.offshoot_value,
+				"mutation": mutation_id,
+				"price": int(round(float(data.offshoot_value) * multiplier)),
 				"icon": "offshoot",
 			}
 	return {}

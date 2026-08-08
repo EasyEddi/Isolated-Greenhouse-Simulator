@@ -27,7 +27,7 @@ The zones use furniture, lighting, floor wear, and sight lines rather than color
 1. Inspect current plants and the objective board.
 2. Use the office terminal to order a starter, the matching soil blend, fertilizer, or equipment.
 3. Watch the delivery drone enter the hall and place a crate on the delivery pad.
-4. Carry the delivered contents into storage or prepare a pot at a nursery bench.
+4. Collect the crate into the inventory and prepare a pot at a nursery bench.
 5. Plant, water, and fertilize according to the species profile.
 6. Observe continuous growth and react to changing moisture, nutrition, and health.
 7. Harvest a healthy offshoot with secateurs once the plant is mature.
@@ -55,14 +55,14 @@ The first release targets twelve recognizable species across different care prof
 
 ## Growth And Care
 
-- Growth is continuous, not an instant stage swap. Mesh scale, leaf spread, color, and new growth interpolate over time.
+- Growth is continuous, not an instant stage swap. New stems, leaves, and flowers emerge progressively while the plant keeps a coherent silhouette.
 - Every plant tracks moisture, nutrition, health, maturity, care streak, and offshoot progress.
-- Correct soil improves water retention and maximum health. Incorrect soil remains playable but slows growth and raises stress.
+- Correct soil improves care quality, recovery, and growth. Incorrect soil remains playable but slows progress and raises stress.
 - Correct fertilizer produces steady nutrition. Incorrect fertilizer provides less nutrition and can temporarily stress the plant.
 - Watering is press-and-hold, consumes the can reservoir, and fills moisture over time.
 - Overwatering and drought both matter, but neither instantly kills a plant. Visible stress gives the player time to recover.
 - Healthy mature plants build offshoot progress. Secateurs convert a ready offshoot into a sellable inventory item.
-- A small variegation mutation may appear only after the core loop is stable; it is not required for the first complete slice.
+- Newly planted starters have a `5.5%` chance to develop a variegation mutation. Pale leaf sectors persist through saves, pass into harvested stock, and raise the offshoot value by `1.65x`.
 
 ## Art Direction
 

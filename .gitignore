@@ -6,3 +6,4 @@ logs/
 *.log
 *.translation
 assets/source/
+Documentation/Screenshots/*.import

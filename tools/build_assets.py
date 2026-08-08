@@ -7,6 +7,7 @@ Run with:
 from __future__ import annotations
 
 import math
+import re
 import sys
 from pathlib import Path
 
@@ -430,6 +431,27 @@ def normalize_imported(objects, target_max_dimension: float) -> None:
             obj.matrix_world = transform @ obj.matrix_world
 
 
+def batch_growth_meshes() -> None:
+    """Collapse geometry sharing a growth threshold into one draw-call batch."""
+    groups = {}
+    for obj in list(bpy.context.scene.objects):
+        if obj.type != "MESH":
+            continue
+        match = re.search(r"_g([0-9]{3})_", obj.name)
+        key = match.group(1) if match else "static"
+        groups.setdefault(key, []).append(obj)
+    for key, objects in groups.items():
+        bpy.ops.object.select_all(action="DESELECT")
+        for obj in objects:
+            obj.select_set(True)
+        bpy.context.view_layer.objects.active = objects[0]
+        bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+        if len(objects) > 1:
+            bpy.ops.object.join()
+        batch = bpy.context.view_layer.objects.active
+        batch.name = f"plant_g{key}_batch" if key != "static" else "plant_static_batch"
+
+
 def convert_prop(slug: str, relative_path: str, target_max_dimension: float) -> None:
     source = SOURCE_ROOT / relative_path
     if not source.exists():
@@ -458,6 +480,7 @@ def build_plant(slug: str, builder) -> None:
     add_standard_pot()
     mats = common_materials()
     builder(mats)
+    batch_growth_meshes()
     output = PLANT_ROOT / f"{slug}.glb"
     export_glb(output)
     meshes = [obj for obj in bpy.context.scene.objects if obj.type == "MESH"]
@@ -466,12 +489,38 @@ def build_plant(slug: str, builder) -> None:
     print(f"ASSET_PLANT {slug}: meshes={len(meshes)} vertices={vertices} triangles={triangles} output={output}")
 
 
+def build_starter_prop() -> None:
+    reset_scene()
+    fiber = material("Starter_Fiber", (0.30, 0.16, 0.08, 1.0), 0.92)
+    soil = material("Starter_Soil", (0.10, 0.055, 0.025, 1.0), 1.0)
+    stem = material("Starter_Stem", (0.18, 0.48, 0.19, 1.0), 0.76)
+    leaf_green = material("Starter_Leaf", (0.30, 0.68, 0.32, 1.0), 0.70)
+    vein = material("Starter_Vein", (0.66, 0.82, 0.43, 1.0), 0.72)
+    bpy.ops.mesh.primitive_cone_add(vertices=10, radius1=0.088, radius2=0.115, depth=0.135, location=(0, 0, 0.0675))
+    plug = bpy.context.object
+    plug.name = "starter_fiber_plug"
+    plug.data.materials.append(fiber)
+    bpy.ops.mesh.primitive_cylinder_add(vertices=12, radius=0.101, depth=0.012, location=(0, 0, 0.141))
+    soil_top = bpy.context.object
+    soil_top.name = "starter_soil_top"
+    soil_top.data.materials.append(soil)
+    stem_start = Vector((0.0, 0.0, 0.145))
+    stem_end = Vector((0.0, 0.0, 0.34))
+    cylinder_between("starter_stem", stem_start, stem_end, 0.012, stem, 8)
+    leaf("starter_leaf_left", Vector((0, 0, 0.255)), Vector((-0.72, 0.18, 0.42)), 0.20, 0.115, leaf_green, 0.0, "ellipse", 0.035, 0.0, vein, 9)
+    leaf("starter_leaf_right", Vector((0, 0, 0.29)), Vector((0.70, -0.12, 0.46)), 0.19, 0.108, leaf_green, 0.0, "ellipse", 0.032, 0.0, vein, 9)
+    output = PROP_ROOT / "plant_starter.glb"
+    export_glb(output)
+    print(f"ASSET_PROP plant_starter: procedural output={output}")
+
+
 def main() -> None:
     for slug, (relative_path, target_dimension) in PROP_SOURCES.items():
         convert_prop(slug, relative_path, target_dimension)
+    build_starter_prop()
     for slug, builder in PLANT_BUILDERS.items():
         build_plant(slug, builder)
-    print(f"ASSET_BUILD_COMPLETE props={len(PROP_SOURCES)} plants={len(PLANT_BUILDERS)}")
+    print(f"ASSET_BUILD_COMPLETE props={len(PROP_SOURCES) + 1} plants={len(PLANT_BUILDERS)}")
 
 
 if __name__ == "__main__":

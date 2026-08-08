@@ -9,6 +9,8 @@ var shop_tab: Button
 var sell_tab: Button
 var category_buttons: Dictionary = {}
 var item_grid: GridContainer
+var cart_panel: PanelContainer
+var cart_header: Label
 var cart_list: VBoxContainer
 var cart_total_label: Label
 var checkout_button: Button
@@ -45,7 +47,7 @@ func open() -> void:
 	current_mode = "shop"
 	current_category = "plants"
 	_refresh_all()
-	grab_focus()
+	shop_tab.call_deferred("grab_focus")
 
 
 func close() -> void:
@@ -95,14 +97,6 @@ func _build_ui() -> void:
 	status_label.add_theme_color_override("font_color", colors.muted)
 	status_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	top_bar.add_child(status_label)
-	var close_button := Button.new()
-	close_button.text = "X"
-	close_button.tooltip_text = "Leave terminal"
-	close_button.custom_minimum_size = Vector2(56, 56)
-	close_button.add_theme_font_size_override("font_size", 22)
-	_apply_button_style(close_button, false)
-	close_button.pressed.connect(func(): close_requested.emit())
-	top_bar.add_child(close_button)
 	var separator := HSeparator.new()
 	separator.add_theme_color_override("separator", colors.line.darkened(0.2))
 	outer.add_child(separator)
@@ -130,14 +124,14 @@ func _build_ui() -> void:
 	item_grid.add_theme_constant_override("h_separation", 14)
 	item_grid.add_theme_constant_override("v_separation", 14)
 	scroll.add_child(item_grid)
-	var cart_panel := PanelContainer.new()
+	cart_panel = PanelContainer.new()
 	cart_panel.custom_minimum_size.x = 285
 	cart_panel.add_theme_stylebox_override("panel", _panel_style(colors.ink, colors.line.darkened(0.28), 1, 3, 16))
 	content.add_child(cart_panel)
 	var cart_column := VBoxContainer.new()
 	cart_column.add_theme_constant_override("separation", 12)
 	cart_panel.add_child(cart_column)
-	var cart_header := Label.new()
+	cart_header = Label.new()
 	cart_header.text = "ORDER"
 	cart_header.add_theme_font_size_override("font_size", 21)
 	cart_header.add_theme_color_override("font_color", colors.text)
@@ -188,6 +182,7 @@ func _refresh_all() -> void:
 func _refresh_tabs() -> void:
 	_set_button_active(shop_tab, current_mode == "shop")
 	_set_button_active(sell_tab, current_mode == "sell")
+	cart_panel.visible = current_mode == "shop"
 	for category in category_buttons:
 		_set_button_active(category_buttons[category], current_mode == "shop" and current_category == category)
 	status_label.text = "DRONE QUEUE %d" % game_state.pending_orders.size() if game_state.pending_orders.size() else "DRONE LINK READY"
@@ -213,7 +208,7 @@ func _rebuild_items() -> void:
 				if PlantCatalog.BASE_ITEMS[item_id].kind in ["soil", "feed"]:
 					item_grid.add_child(_shop_card(item_id))
 		"equipment":
-			for item_id in ["watering_can", "trowel", "secateurs"]:
+			for item_id in ["empty_pot", "watering_can", "trowel", "secateurs"]:
 				item_grid.add_child(_equipment_card(item_id))
 
 
@@ -227,6 +222,11 @@ func _shop_card(item_id: String) -> Control:
 	card.add_child(column)
 	var icon := GreenhouseIcon.new()
 	icon.icon_kind = str(data.icon)
+	if data.kind == "starter":
+		var species := PlantCatalog.species(str(data.species))
+		icon.icon_kind = "species:%s" % str(data.species)
+		icon.icon_color = Color(species.accent)
+		icon.secondary_color = Color(species.accent).darkened(0.28)
 	icon.custom_minimum_size = Vector2(60, 60)
 	column.add_child(icon)
 	var name_label := Label.new()
@@ -273,7 +273,7 @@ func _equipment_card(item_id: String) -> Control:
 	name_label.add_theme_font_size_override("font_size", 18)
 	column.add_child(name_label)
 	var status := Label.new()
-	status.text = "ON TOOL RACK"
+	status.text = "ON POTTING BENCH" if item_id == "empty_pot" else "ON TOOL RACK"
 	status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	status.add_theme_color_override("font_color", colors.accent)
 	status.add_theme_font_size_override("font_size", 14)
@@ -291,7 +291,12 @@ func _sell_card(item_id: String) -> Control:
 	column.add_theme_constant_override("separation", 9)
 	card.add_child(column)
 	var icon := GreenhouseIcon.new()
-	icon.icon_kind = "offshoot"
+	var species_id := str(data.species)
+	var species := PlantCatalog.species(species_id)
+	icon.icon_kind = "species:%s" % species_id
+	var mutation_id := str(data.get("mutation", ""))
+	icon.icon_color = Color("#dce8ae") if mutation_id == "variegated" else Color(species.accent)
+	icon.secondary_color = Color("#72a66b") if mutation_id == "variegated" else Color(species.accent).darkened(0.28)
 	icon.custom_minimum_size = Vector2(62, 62)
 	column.add_child(icon)
 	var name_label := Label.new()

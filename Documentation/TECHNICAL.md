@@ -15,10 +15,10 @@
 - `player.gd`: first-person movement, focus ray, held-item presentation, and input modes.
 - `plant_catalog.gd`: immutable species and item definitions.
 - `plant_actor.gd`: per-pot care simulation, visuals, growth, and harvest interaction.
-- `game_state.gd`: inventory, economy, unlocks, objectives, deliveries, and save snapshot.
-- `terminal_ui.gd`: shop, sales, journal, and delivery feedback.
+- `game_state.gd`: inventory, economy, objectives, deliveries, and save snapshot.
+- `terminal_ui.gd`: shop, offshoot sales, cart state, and delivery feedback.
 - `drone_controller.gd`: physical delivery sequence and crate state.
-- `hud.gd`: crosshair, prompt, hotbar, objective, plant readout, pause, and settings.
+- `hud.gd`: crosshair, prompt, hotbar, inventory, plant journal, plant readout, and pause settings.
 
 ## Validation Gates
 

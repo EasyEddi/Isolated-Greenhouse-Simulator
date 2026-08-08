@@ -9,6 +9,8 @@ signal harvested(plant: GreenhousePlantActor)
 var slot_id: String = ""
 var game_state: GreenhouseGameState
 var species_id: String = ""
+var mutation_id: String = ""
+var mutation_chance: float = 0.055
 var soil_profile: String = ""
 var soil_prepared: bool = false
 var feed_profile: String = ""
@@ -113,7 +115,7 @@ func interact(_player, selected_item: String = "") -> bool:
 	if selected_item == "secateurs" and offshoot_ready:
 		offshoot_ready = false
 		offshoot_progress = 0.0
-		game_state.register_harvest(species_id)
+		game_state.register_harvest(species_id, mutation_id)
 		game_state.message_requested.emit("Healthy offshoot harvested", "good")
 		harvested.emit(self)
 		_update_visuals(true)
@@ -155,6 +157,7 @@ func _interact_empty(selected_item: String) -> bool:
 		if PlantCatalog.species(new_species).is_empty() or not game_state.remove_item(selected_item):
 			return false
 		species_id = new_species
+		mutation_id = "variegated" if randf() < mutation_chance else ""
 		moisture = 0.24
 		nutrition = 0.10
 		health = 0.86
@@ -163,7 +166,10 @@ func _interact_empty(selected_item: String) -> bool:
 		offshoot_ready = false
 		_load_plant_visual()
 		game_state.advance_objective("plant")
-		game_state.message_requested.emit("%s planted" % PlantCatalog.species(species_id).name, "good")
+		if mutation_id.is_empty():
+			game_state.message_requested.emit("%s planted" % PlantCatalog.species(species_id).name, "good")
+		else:
+			game_state.message_requested.emit("A rare variegated shoot has emerged", "good")
 		planted.emit(self)
 		_update_visuals(true)
 		return true
@@ -255,6 +261,27 @@ func _load_plant_visual() -> void:
 	plant_visual.name = "Species_%s" % species_id
 	visual_root.add_child(plant_visual)
 	_cache_growth_parts(plant_visual)
+	_apply_mutation_visuals(plant_visual)
+
+
+func _apply_mutation_visuals(node: Node) -> void:
+	if mutation_id != "variegated":
+		return
+	if node is MeshInstance3D and node.mesh:
+		for surface in range(node.mesh.get_surface_count()):
+			var base_material: Material = node.get_active_material(surface)
+			if not base_material is StandardMaterial3D:
+				continue
+			var standard_material := base_material as StandardMaterial3D
+			var base_color: Color = standard_material.albedo_color
+			var looks_green := base_color.g > base_color.r * 1.04 and base_color.g > base_color.b * 1.04
+			var patch_hash := posmod((slot_id + node.name + str(surface)).hash(), 100)
+			if looks_green and patch_hash < 58:
+				var mutation_material := standard_material.duplicate() as StandardMaterial3D
+				mutation_material.albedo_color = base_color.lerp(Color("#e2e9b5"), 0.68)
+				node.set_surface_override_material(surface, mutation_material)
+	for child in node.get_children():
+		_apply_mutation_visuals(child)
 
 
 func _cache_growth_parts(node: Node) -> void:
@@ -286,7 +313,12 @@ func _update_visuals(force: bool = false) -> void:
 		var threshold := float(part.threshold)
 		var emergence := smoothstep(threshold - 0.025, threshold + 0.115, growth)
 		node.visible = emergence > 0.005
-		node.scale = Vector3(part.base_scale) * lerpf(0.035, 1.0, emergence)
+		if node.name.ends_with("_batch"):
+			node.scale = Vector3(part.base_scale)
+			if node is GeometryInstance3D:
+				node.transparency = 1.0 - emergence
+		else:
+			node.scale = Vector3(part.base_scale) * lerpf(0.035, 1.0, emergence)
 	if plant_visual:
 		var stress := 1.0 - health
 		plant_visual.rotation.z = sin(Time.get_ticks_msec() * 0.00055 + float(slot_id.hash() % 10)) * 0.008 - stress * 0.09
@@ -301,6 +333,7 @@ func snapshot() -> Dictionary:
 	return {
 		"slot_id": slot_id,
 		"species_id": species_id,
+		"mutation_id": mutation_id,
 		"soil_profile": soil_profile,
 		"soil_prepared": soil_prepared,
 		"feed_profile": feed_profile,
@@ -316,6 +349,7 @@ func snapshot() -> Dictionary:
 
 func apply_snapshot(data: Dictionary) -> void:
 	species_id = str(data.get("species_id", ""))
+	mutation_id = str(data.get("mutation_id", ""))
 	soil_profile = str(data.get("soil_profile", ""))
 	soil_prepared = bool(data.get("soil_prepared", false))
 	feed_profile = str(data.get("feed_profile", ""))
@@ -339,9 +373,13 @@ func plant_readout() -> Dictionary:
 			"prepared": soil_prepared,
 		}
 	var data := PlantCatalog.species(species_id)
+	var display_name := str(data.name)
+	if not mutation_id.is_empty():
+		display_name += " (%s)" % PlantCatalog.MUTATION_NAMES.get(mutation_id, mutation_id.capitalize())
 	return {
-		"name": data.name,
+		"name": display_name,
 		"group": data.group,
+		"mutation": mutation_id,
 		"growth": growth,
 		"health": health,
 		"moisture": moisture,

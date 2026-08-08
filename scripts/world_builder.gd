@@ -55,6 +55,9 @@ func _build_materials() -> void:
 		"wood": _material(Color("#6b4931"), 0.79),
 		"wood_light": _material(Color("#a4774f"), 0.76),
 		"steel": _material(Color("#41565b"), 0.55, 0.35),
+		"utility": _material(Color("#9fb5b3"), 0.58, 0.18),
+		"basin": _material(Color("#274f58"), 0.36, 0.22),
+		"water": _material(Color("#4e9eb2"), 0.22, 0.02, Color("#4d91a5"), 0.18),
 		"paint_green": _material(Color("#36675d"), 0.66, 0.10),
 		"paint_yellow": _material(Color("#c6a24e"), 0.70, 0.04),
 		"terracotta": _material(Color("#aa5f3e"), 0.84),
@@ -122,7 +125,7 @@ func _build_environment() -> void:
 		light.light_color = spec[1]
 		light.light_energy = spec[2]
 		light.omni_range = 8.0
-		light.shadow_enabled = true
+		light.shadow_enabled = false
 		add_child(light)
 
 
@@ -161,6 +164,11 @@ func _add_brick_wall(parent: Node3D, wall_name: String, center: Vector3, size: V
 	var columns := maxi(1, int(length / 0.82))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = wall_name.hash()
+	var brick_positions := {
+		"brick_a": [],
+		"brick_b": [],
+		"brick_c": [],
+	}
 	for row in range(rows):
 		var brick_height := 0.32
 		var y := 0.25 + row * 0.39
@@ -172,17 +180,33 @@ func _add_brick_wall(parent: Node3D, wall_name: String, center: Vector3, size: V
 			if along > length * 0.5 - 0.18:
 				continue
 			var color_key: String = ["brick_a", "brick_b", "brick_c"][rng.randi_range(0, 2)]
-			var brick_size := Vector3(0.76, brick_height, 0.035)
 			var brick_position := center
 			brick_position.y = y
 			if vertical:
 				brick_position.z += along
 				brick_position.x += -signf(center.x) * (WALL_THICKNESS * 0.5 + 0.019)
-				brick_size = Vector3(0.035, brick_height, 0.76)
 			else:
 				brick_position.x += along
 				brick_position.z += -signf(center.z) * (WALL_THICKNESS * 0.5 + 0.019)
-			_add_box(parent, "%s_Brick_%d_%d" % [wall_name, row, column], brick_position, brick_size, materials[color_key], false)
+			brick_positions[color_key].append(brick_position)
+	var brick_size := Vector3(0.035, 0.32, 0.76) if vertical else Vector3(0.76, 0.32, 0.035)
+	for color_key in brick_positions:
+		var positions: Array = brick_positions[color_key]
+		if positions.is_empty():
+			continue
+		var brick_mesh := BoxMesh.new()
+		brick_mesh.size = brick_size
+		var multimesh := MultiMesh.new()
+		multimesh.transform_format = MultiMesh.TRANSFORM_3D
+		multimesh.mesh = brick_mesh
+		multimesh.instance_count = positions.size()
+		for index in range(positions.size()):
+			multimesh.set_instance_transform(index, Transform3D(Basis.IDENTITY, positions[index]))
+		var instance := MultiMeshInstance3D.new()
+		instance.name = "%s_%s_Bricks" % [wall_name, color_key]
+		instance.multimesh = multimesh
+		instance.material_override = materials[color_key]
+		parent.add_child(instance)
 
 
 func _build_living_department() -> void:
@@ -210,7 +234,7 @@ func _build_office_department() -> void:
 	_add_prop(area, "OfficeDesk", "desk_setup", Vector3(-8.1, 0.02, 8.35), PI, Vector3(2.5, 1.25, 1.0), Vector3(0, 0.62, 0))
 	terminal_interactable = GreenhouseInteractable.new()
 	terminal_interactable.name = "OnlineShopTerminal"
-	terminal_interactable.position = Vector3(-8.1, 1.23, 7.92)
+	terminal_interactable.position = Vector3(-7.72, 1.16, 7.78)
 	terminal_interactable.configure("terminal", "Use terminal", _on_terminal_interacted, "F")
 	area.add_child(terminal_interactable)
 	var collision := CollisionShape3D.new()
@@ -218,13 +242,6 @@ func _build_office_department() -> void:
 	shape.size = Vector3(0.88, 0.58, 0.16)
 	collision.shape = shape
 	terminal_interactable.add_child(collision)
-	var screen := MeshInstance3D.new()
-	var screen_mesh := BoxMesh.new()
-	screen_mesh.size = Vector3(0.82, 0.50, 0.035)
-	screen.mesh = screen_mesh
-	screen.material_override = materials.screen
-	screen.position.z = -0.085
-	terminal_interactable.add_child(screen)
 	_add_box(area, "OfficeMat", Vector3(-8.1, 0.02, 6.95), Vector3(3.2, 0.035, 2.5), materials.paint_green, false)
 
 
@@ -300,6 +317,7 @@ func _build_greenhouse_department() -> void:
 			"health": 0.94,
 			"growth": [0.76, 0.85, 0.68, 0.72][index],
 			"offshoot_progress": 0.20,
+			"mutation_id": "variegated" if index == 0 else "",
 		}
 		_add_plant_slot(Vector3(5.65 + index * 0.9, 0.94, -6.45), snapshot)
 
@@ -309,16 +327,26 @@ func _build_water_station() -> void:
 	area.name = "WaterDepartment"
 	add_child(area)
 	_add_sign(area, "WATER", Vector3(-11.56, 3.0, -6.5), Vector3(0, PI * 0.5, 0), Color("#8cc4d8"))
-	_add_box(area, "WaterCounter", Vector3(-10.7, 0.52, -7.2), Vector3(1.65, 1.04, 0.72), materials.steel, true)
-	_add_prop(area, "GardenFaucet", "garden_faucet", Vector3(-10.85, 1.08, -7.45), PI * 0.5, Vector3.ZERO)
+	_add_box(area, "UtilitySinkBase", Vector3(-11.28, 0.43, -7.2), Vector3(0.74, 0.86, 1.66), materials.utility, true)
+	_add_box(area, "UtilitySinkTop", Vector3(-11.24, 0.90, -7.2), Vector3(0.84, 0.12, 1.80), materials.utility, false)
+	_add_box(area, "UtilitySinkBasin", Vector3(-11.14, 0.966, -7.2), Vector3(0.48, 0.025, 1.10), materials.basin, false)
+	_add_box(area, "UtilitySinkWater", Vector3(-11.13, 0.980, -7.2), Vector3(0.43, 0.012, 1.00), materials.water, false)
+	_add_box(area, "UtilitySinkFrontRim", Vector3(-10.84, 0.99, -7.2), Vector3(0.10, 0.14, 1.80), materials.utility, false)
+	_add_box(area, "UtilitySinkBacksplash", Vector3(-11.61, 1.30, -7.2), Vector3(0.10, 0.72, 1.90), materials.utility, false)
+	for z in [-8.05, -6.35]:
+		_add_box(area, "UtilitySinkSideRim_%s" % z, Vector3(-11.23, 0.99, z), Vector3(0.82, 0.14, 0.10), materials.utility, false)
+	_add_box(area, "WaterStationMat", Vector3(-10.15, 0.018, -7.2), Vector3(1.45, 0.035, 2.15), materials.rubber, false)
+	_add_box(area, "ColdWaterPipe", Vector3(-11.59, 0.46, -7.56), Vector3(0.08, 0.82, 0.08), materials.steel, false)
+	_add_box(area, "DrainPipe", Vector3(-11.18, 0.34, -7.2), Vector3(0.12, 0.58, 0.12), materials.steel, false)
+	_add_prop(area, "GardenFaucet", "garden_faucet", Vector3(-11.30, 1.06, -7.55), PI * 0.5, Vector3.ZERO)
 	faucet_interactable = GreenhouseInteractable.new()
 	faucet_interactable.name = "WaterFaucet"
-	faucet_interactable.position = Vector3(-10.7, 1.18, -7.05)
+	faucet_interactable.position = Vector3(-10.77, 1.22, -7.2)
 	faucet_interactable.configure("faucet", "Refill watering can", _on_faucet_interacted, "E")
 	area.add_child(faucet_interactable)
 	var collision := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
-	shape.size = Vector3(1.1, 0.5, 0.4)
+	shape.size = Vector3(0.24, 0.55, 1.25)
 	collision.shape = shape
 	faucet_interactable.add_child(collision)
 
@@ -411,6 +439,7 @@ func _default_plant_snapshots() -> Array:
 				"health": 0.90,
 				"growth": spec[4],
 				"offshoot_progress": 0.15 if index % 2 else 0.35,
+				"mutation_id": "variegated" if index == 7 else "",
 			})
 		else:
 			result.append({"slot_id": "nursery_%02d" % index})

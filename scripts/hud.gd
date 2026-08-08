@@ -10,6 +10,8 @@ signal quit_requested
 var game_state: GreenhouseGameState
 var player: GreenhousePlayer
 var root: Control
+var gameplay_root: Control
+var currency_panel: PanelContainer
 var currency_label: Label
 var objective_label: Label
 var prompt_label: Label
@@ -71,6 +73,9 @@ func _process(_delta: float) -> void:
 func show_start_menu(has_save: bool) -> void:
 	start_open = true
 	start_overlay.visible = true
+	gameplay_root.visible = false
+	currency_panel.visible = false
+	player.held_root.visible = false
 	continue_button.visible = has_save
 	player.set_gameplay_enabled(false)
 
@@ -78,7 +83,16 @@ func show_start_menu(has_save: bool) -> void:
 func close_start_menu() -> void:
 	start_open = false
 	start_overlay.visible = false
+	gameplay_root.visible = true
+	currency_panel.visible = true
+	player.held_root.visible = true
 	player.set_gameplay_enabled(true)
+
+
+func set_terminal_mode(active: bool) -> void:
+	gameplay_root.visible = not active
+	currency_panel.visible = true
+	player.held_root.visible = not active
 
 
 func toggle_inventory() -> void:
@@ -146,6 +160,11 @@ func _build_ui() -> void:
 	root.name = "HUDRoot"
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(root)
+	gameplay_root = Control.new()
+	gameplay_root.name = "GameplayHUD"
+	gameplay_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	gameplay_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(gameplay_root)
 	_build_currency()
 	_build_objective()
 	_build_crosshair()
@@ -160,6 +179,7 @@ func _build_ui() -> void:
 
 func _build_currency() -> void:
 	var panel := PanelContainer.new()
+	currency_panel = panel
 	panel.name = "Currency"
 	panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 	panel.position = Vector2(-232, 22)
@@ -189,7 +209,7 @@ func _build_objective() -> void:
 	panel.position = Vector2(24, 24)
 	panel.size = Vector2(460, 88)
 	panel.add_theme_stylebox_override("panel", _style(palette.panel, palette.line.darkened(0.18), 1, 4, 14))
-	root.add_child(panel)
+	gameplay_root.add_child(panel)
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override("separation", 3)
 	panel.add_child(column)
@@ -212,14 +232,14 @@ func _build_crosshair() -> void:
 	horizontal.position = Vector2(-8, -1)
 	horizontal.size = Vector2(16, 2)
 	horizontal.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(horizontal)
+	gameplay_root.add_child(horizontal)
 	var vertical := ColorRect.new()
 	vertical.color = horizontal.color
 	vertical.set_anchors_preset(Control.PRESET_CENTER)
 	vertical.position = Vector2(-1, -8)
 	vertical.size = Vector2(2, 16)
 	vertical.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(vertical)
+	gameplay_root.add_child(vertical)
 
 
 func _build_prompt() -> void:
@@ -233,7 +253,7 @@ func _build_prompt() -> void:
 	prompt_label.add_theme_color_override("font_color", palette.text)
 	prompt_label.add_theme_color_override("font_outline_color", palette.ink)
 	prompt_label.add_theme_constant_override("outline_size", 6)
-	root.add_child(prompt_label)
+	gameplay_root.add_child(prompt_label)
 
 
 func _build_hotbar() -> void:
@@ -243,7 +263,7 @@ func _build_hotbar() -> void:
 	panel.position = Vector2(-245, -92)
 	panel.size = Vector2(490, 78)
 	panel.add_theme_stylebox_override("panel", _style(Color(0.07, 0.11, 0.10, 0.88), palette.line.darkened(0.25), 1, 3, 7))
-	root.add_child(panel)
+	gameplay_root.add_child(panel)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 8)
@@ -287,7 +307,7 @@ func _build_message() -> void:
 	message_panel.size = Vector2(520, 52)
 	message_panel.add_theme_stylebox_override("panel", _style(palette.panel, palette.line, 1, 4, 10))
 	message_panel.visible = false
-	root.add_child(message_panel)
+	gameplay_root.add_child(message_panel)
 	message_label = Label.new()
 	message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	message_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -303,7 +323,7 @@ func _build_plant_panel() -> void:
 	plant_panel.size = Vector2(300, 350)
 	plant_panel.add_theme_stylebox_override("panel", _style(palette.panel, palette.line, 1, 4, 15))
 	plant_panel.visible = false
-	root.add_child(plant_panel)
+	gameplay_root.add_child(plant_panel)
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override("separation", 9)
 	plant_panel.add_child(column)

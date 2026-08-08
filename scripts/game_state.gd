@@ -28,6 +28,7 @@ var hotbar: Array[String] = ["watering_can", "trowel", "secateurs", "soil:aroid"
 var selected_hotbar_index: int = 0
 var watering_can_liters: float = 4.0
 var watering_can_capacity: float = 4.0
+var watering_can_empty_notified := false
 var objective_index: int = 0
 var plants_snapshot: Array = []
 var total_sales: int = 0
@@ -58,6 +59,7 @@ func new_game() -> void:
 	hotbar = ["watering_can", "trowel", "secateurs", "soil:aroid", "feed:foliage"]
 	selected_hotbar_index = 0
 	watering_can_liters = watering_can_capacity
+	watering_can_empty_notified = false
 	objective_index = 0
 	plants_snapshot.clear()
 	total_sales = 0
@@ -129,6 +131,7 @@ func equip_item(item_id: String) -> void:
 
 func refill_watering_can() -> void:
 	watering_can_liters = watering_can_capacity
+	watering_can_empty_notified = false
 	message_requested.emit("Watering can refilled", "good")
 	state_changed.emit()
 
@@ -136,8 +139,11 @@ func refill_watering_can() -> void:
 func consume_water(liters: float) -> float:
 	var used := minf(maxf(liters, 0.0), watering_can_liters)
 	watering_can_liters -= used
-	if watering_can_liters <= 0.001:
+	if watering_can_liters <= 0.001 and not watering_can_empty_notified:
+		watering_can_empty_notified = true
 		message_requested.emit("The watering can is empty", "warning")
+	elif watering_can_liters > 0.001:
+		watering_can_empty_notified = false
 	state_changed.emit()
 	return used
 
@@ -216,8 +222,11 @@ func sell_offshoot(item_id: String) -> bool:
 	return true
 
 
-func register_harvest(species_id: String) -> void:
-	add_item("offshoot:%s" % species_id)
+func register_harvest(species_id: String, mutation_id: String = "") -> void:
+	var item_id := "offshoot:%s" % species_id
+	if not mutation_id.is_empty():
+		item_id += "#%s" % mutation_id
+	add_item(item_id)
 	total_harvests += 1
 	advance_objective("harvest")
 
@@ -262,10 +271,14 @@ func load_game() -> Dictionary:
 		return {}
 	currency = int(payload.get("currency", 85))
 	inventory = Dictionary(payload.get("inventory", {})).duplicate(true)
-	pending_orders = Array(payload.get("pending_orders", [])).duplicate(true)
+	pending_orders.clear()
+	for pending_order in Array(payload.get("pending_orders", [])):
+		if pending_order is Dictionary:
+			pending_orders.append(Dictionary(pending_order).duplicate(true))
 	hotbar.assign(Array(payload.get("hotbar", hotbar)))
 	selected_hotbar_index = int(payload.get("selected_hotbar_index", 0))
 	watering_can_liters = float(payload.get("watering_can_liters", watering_can_capacity))
+	watering_can_empty_notified = watering_can_liters <= 0.001
 	objective_index = int(payload.get("objective_index", 0))
 	plants_snapshot = Array(payload.get("plants", [])).duplicate(true)
 	total_sales = int(payload.get("total_sales", 0))

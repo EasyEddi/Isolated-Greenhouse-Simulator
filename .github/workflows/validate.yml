@@ -1,0 +1,62 @@
+name: Validate And Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: greenhouse-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 4.6.3
+  GODOT_STATUS: stable
+  GODOT_BIN: Godot_v4.6.3-stable_linux.x86_64
+
+jobs:
+  validate-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Install Godot and export templates
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-${GODOT_STATUS}"
+          curl --fail --location --retry 3 --output godot.zip \
+            "${base}/Godot_v${GODOT_VERSION}-${GODOT_STATUS}_linux.x86_64.zip"
+          curl --fail --location --retry 3 --output templates.tpz \
+            "${base}/Godot_v${GODOT_VERSION}-${GODOT_STATUS}_export_templates.tpz"
+          unzip -q godot.zip
+          chmod +x "${GODOT_BIN}"
+          mkdir -p "$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.${GODOT_STATUS}"
+          unzip -q templates.tpz -d template-package
+          cp -R template-package/templates/. \
+            "$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.${GODOT_STATUS}/"
+
+      - name: Import project
+        run: ./${{ env.GODOT_BIN }} --headless --editor --path . --quit
+
+      - name: Run simulation tests
+        run: ./${{ env.GODOT_BIN }} --headless --path . --script res://tests/run_tests.gd
+
+      - name: Run scene integration tests
+        run: ./${{ env.GODOT_BIN }} --headless --path . --script res://tests/run_integration_tests.gd
+
+      - name: Export Windows release
+        run: ./${{ env.GODOT_BIN }} --headless --path . --export-release "Windows Desktop" build/IsolatedGreenhouse_0.1.0.exe
+
+      - name: Upload Windows executable
+        uses: actions/upload-artifact@v7
+        with:
+          path: build/IsolatedGreenhouse_0.1.0.exe
+          archive: false
